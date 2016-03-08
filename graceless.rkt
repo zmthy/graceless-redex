@@ -4,26 +4,26 @@
 
 ;; The core syntax of Graceless.
 (define-language Graceless
-  (e (object M ...)
+  (e o
      (request e m e ...)
      (request m e ...)
      self)
   (M (method m (x ...) e))
+  (o (object M ...))
   (m variable-not-otherwise-mentioned
      (variable-not-otherwise-mentioned :=))
   (x variable-not-otherwise-mentioned))
 
 ;; The runtime syntax of Graceless.
 (define-extended-language G Graceless
+  (e ....
+     v)
+  (v (ref ℓ))
   (E (request E m e ...)
      (request v m v ... E e ...)
      (request m v ... E e ...)
      hole)
-  (e ....
-     v)
-  (v (ref ℓ))
   (ℓ number)
-  (o (object M ...))
   (σ (o ...))
   (ms [m ...]))
 
@@ -41,6 +41,8 @@
 ;; of names ms.
 (define-metafunction G
   subst : ms ℓ e -> e
+  [(subst [m_l ... m m_r ...] ℓ (name o (object _ ... (method m _ _) _ ...)))
+   (subst [m_l ... m_r ...] ℓ o)]
   [(subst ms ℓ (object M ...)) (object (subst-method ms ℓ M) ...)]
   [(subst ms ℓ (request e m e_a ...))
    (request (subst ms ℓ e) m (subst ms ℓ e_a) ...)]
@@ -62,13 +64,19 @@
 ;; and the updated store.
 (define-metafunction G
   allocate : σ o -> [ℓ σ]
-  [(allocate (name σ (o_σ ...)) o) [(store-size σ) (o_σ ... o)]])
+  [(allocate σ o) [(fresh-location σ) (store σ o)]])
 
-;; Calculate the size of the store.
+;; Store the object o.  The resulting location is the same as calculated by
+;; fresh-location on the same store, before the object is added.
 (define-metafunction G
-  store-size : σ -> ℓ
-  [(store-size ()) 0]
-  [(store-size (_ o ...)) ,(+ 1 (term (store-size (o ...))))])
+  store : σ o -> σ
+  [(store (o_σ ...) o) (o_σ ... o)])
+
+;; Fetch a fresh location for the store.
+(define-metafunction G
+  fresh-location : σ -> ℓ
+  [(fresh-location ()) 0]
+  [(fresh-location (_ o ...)) ,(+ 1 (term (fresh-location (o ...))))])
 
 ;; Search for the object at the location ℓ in the store σ.
 (define-metafunction G
@@ -82,17 +90,19 @@
   (reduction-relation
    G
    #:domain [e σ]
-   ;; Allocate the object o and return the resulting reference.
-   (--> [(in-hole E o) σ]
+   ;; Allocate the object o substituting local requests to this object, and
+   ;; return the resulting reference.
+   (--> [(in-hole E (object (name M (method m (x ...) e)) ...)) σ]
         [(in-hole E (ref ℓ)) σ_p]
-        (where [ℓ σ_p] (allocate σ o))
+        (where ℓ (fresh-location σ))
+        (where σ_p (store σ (object (subst-method [m ...] ℓ M) ...)))
         object)
    ;; Allocate an object with getter methods to the parameters whose bodies are
    ;; the arguments, and substitute for unqualified requests to the parameters
    ;; and for self.  Return the body of the method.
-   (--> [(in-hole E (request (ref ℓ) m v ...)) σ]
+   (--> [(in-hole E (request (ref ℓ) m v ..._a)) σ]
         [(in-hole E (subst [x ...] ℓ_a (subst-self ℓ e))) σ_p]
-        (where (object _ ... (method m (x ...) e) _ ...) (lookup σ ℓ))
+        (where (object _ ... (method m (x ..._a) e) _ ...) (lookup σ ℓ))
         (where [ℓ_a σ_p] (allocate σ (object (method x () v) ...)))
         request)))
 
@@ -115,25 +125,39 @@
 
 (define simple-object (term [(object) ()]))
 
-(define simple-request (term [(request (object
-                                        (method m (x)
-                                                (request x)))
-                                       m (object)) ()]))
-
-(define scoped (term [(request (object
+(define simple-request (term [(request
+                               (object
                                 (method m (x)
-                                        (object
-                                         (method m (x)
-                                                 (request x)))))
+                                        (request x)))
                                m
                                (object))
+                              ()]))
+
+(define scoped (term [(request
+                       (object
+                        (method m (x)
+                                (object
+                                 (method m (x)
+                                         (request x)))))
+                       m
+                       (object))
                       ()]))
 
-(define multiple-args (term [(request (object
-                                       (method const
-                                               (x y)
-                                               (request y)))
-                                      const
-                                      (object)
-                                      (object))
+(define multiple-args (term [(request
+                              (object
+                               (method const
+                                       (x y)
+                                       (request y)))
+                              const
+                              (object)
+                              (object))
+                             ()]))
+
+(define local-request (term [(request
+                              (object
+                               (method first ()
+                                       (request second))
+                               (method second ()
+                                       self))
+                              first)
                              ()]))
