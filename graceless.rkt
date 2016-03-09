@@ -9,7 +9,8 @@
   (e o
      (request e m e ...)
      (request m e ...)
-     self)
+     self
+     done)
   (M (method m (x ...) e))
   (F (def x = e)
      (var x)
@@ -25,7 +26,8 @@
      (assign e x e e)
      v
      uninitialised)
-  (v (ref ℓ))
+  (v (ref ℓ)
+     done)
   ;; The complex contexts and the simple hole are separated here to allow
   ;; uninitialised to cascade without looping back on itself.
   (E⊥ (request E m e ...)
@@ -188,7 +190,7 @@
   [(field-methods (def x = _)) [(method x () uninitialised)]]
   [(field-methods (var x _ ...))
    [(method x () uninitialised)
-    (method (x :=) (x) (assign self x (request x) (request x)))]])
+    (method (x :=) (x) (assign self x (request x) done))]])
 
 ;; Convert a list of fields to their corresponding getter and (maybe) setter
 ;; methods.

@@ -151,4 +151,14 @@
          (object))))
 
 (test-->>G field-assign
-           (term []))
+           (term done))
+
+(define done-argument
+  (term (request
+         (object
+          (method m (x) (request x)))
+         m
+         done)))
+
+(test-->>G done-argument
+           (term done))
