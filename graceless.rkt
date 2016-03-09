@@ -207,6 +207,11 @@
         (where σ_p (store σ [(subst-method [m ... m_f ...] ℓ M_p) ...]))
         (side-condition (term (unique [m ... m_f ...])))
         object)
+   ;; Optimisation for requests which introduce no local variables.
+   (--> [(in-hole E (request (ref ℓ) m)) σ]
+        [(in-hole E (subst-self ℓ e)) σ]
+        (where [_ ... (method m () e) _ ...] (lookup σ ℓ))
+        simple-request)
    ;; Allocate an object with getter methods to the parameters whose bodies are
    ;; the arguments, and substitute for unqualified requests to the parameters
    ;; and for self.  Return the body of the method.
@@ -221,6 +226,9 @@
         (where [M_f ...] (fields-methods [F ...]))
         (where [ℓ_a σ_p] (allocate σ [(method x_p () v) ... M_f ...]))
         (side-condition (term (unique [x_p ... m_f ...])))
+        ;; Don't apply this rule if the optimisation above applies.
+        (side-condition (or (> (length (term (x_p ...))) 0)
+                            (> (length (term (F ...))) 0)))
         request)
    ;; Set the field in the object and return the following expression.
    (--> [(in-hole E (assign (ref ℓ) x v e)) σ]
