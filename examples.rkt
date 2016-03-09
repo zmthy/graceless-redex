@@ -7,7 +7,7 @@
 
 (define-metafunction G
   names : Ms -> ms
-  [(names [(method m _ _) ...]) [m ...]])
+  [(names [(method m _ _ ... _) ...]) [m ...]])
 
 (define-metafunction G
   result-equiv : any any -> boolean
@@ -121,6 +121,14 @@
 (test-->>G mutable-field
            (term [x (x :=)]))
 
+(define local-field-assign
+  (term (object
+         (var x)
+         (var y (= (request (x :=) self))))))
+
+(test-->>G local-field-assign
+           (term [x (x :=) y]))
+
 (define field-assign
   (term (request
          (object
@@ -129,4 +137,26 @@
          (object))))
 
 (test-->>G field-assign
-           (term [x (x :=)]))
+           (term []))
+
+(define local-variable
+  (term (request
+         (object
+          (method m ()
+                  (var x (= self))
+                  (request x)))
+         m)))
+
+(test-->>G local-variable
+           (term [m]))
+
+(define local-mutable-variable
+  (term (request
+         (object
+          (method m ()
+                  (var x)
+                  (request (x :=) self)))
+         m)))
+
+(test-->>G local-mutable-variable
+            (term [m]))

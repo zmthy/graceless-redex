@@ -10,7 +10,7 @@
      (request e m e ...)
      (request m e ...)
      self)
-  (M (method m (x ...) e))
+  (M (method m (x ...) F ... e))
   (F (var x)
      (var x A))
   (A (= e)
@@ -57,7 +57,7 @@
 ;; of names ms.
 (define-metafunction G
   subst : ms ℓ e -> e
-  [(subst [m_l ... m m_r ...] ℓ (name o (object _ ... (method m _ _) M ...
+  [(subst [m_l ... m m_r ...] ℓ (name o (object _ ... (method m _ _ ... _) M ...
                                                 F ...)))
    (subst [m_l ... m_r ...] ℓ o)]
   [(subst [m_l ... x m_r ...] ℓ (name o (object M ...
@@ -79,10 +79,10 @@
 (define-metafunction G
   subst-method : ms ℓ M -> M
   [(subst-method [m_l ... x m_r ...] ℓ
-                 (name M (method m (_ ... x _ ...) _)))
+                 (name M (method m (_ ... x _ ...) _ ... _)))
    (subst-method [m_l ... m_r ...] ℓ M)]
-  [(subst-method ms ℓ (method m (x ...) e))
-   (method m (x ...) (subst ms ℓ e))])
+  [(subst-method ms ℓ (method m (x ...) F ... e))
+   (method m (x ...) (subst-field ms ℓ F) ... (subst ms ℓ e))])
 
 ;; Continue subst through fields into their assignments.
 (define-metafunction G
@@ -119,15 +119,15 @@
   [(lookup σ ℓ) ,(list-ref (term σ) (term ℓ))])
 
 ;; Execute an assignment in the store σ by setting the field x in the object at
-;; location ℓ to the value v.  This will fail if no such field exists in the
-;; object.
+;; location ℓ to the value v. This will fail if no field named x in the object.
 (define-metafunction G
   set-field : σ ℓ x v -> σ
   [(set-field σ ℓ x v) ,(list-update (term σ)
                                      (term ℓ)
                                      (λ (Ms) (term (update-method ,Ms x v))))])
 
-;; Set the method named x in the method list Ms to return the value v.
+;; Set the method named x in the method list Ms to return the value v.  This
+;; will fail if there is no field named x in the object.
 (define-metafunction G
   update-method : Ms x v -> Ms
   [(update-method [M_l ... (method x () _) M_r ...] x v)
@@ -139,7 +139,7 @@
   [(field-methods (var x (= _))) [(method x () uninitialised)]]
   [(field-methods (var x _ ...))
    [(method x () uninitialised)
-    (method (x :=) (x) (assign self x (request x) self))]])
+    (method (x :=) (x) (assign self x (request x) (request x)))]])
 
 ;; Convert a list of fields to their corresponding getter and (maybe) setter
 ;; methods.
@@ -149,6 +149,21 @@
   [(fields-methods [F F_r ...]) [M ... M_r ...]
    (where [M ...] (field-methods F))
    (where [M_r ...] (fields-methods [F_r ...]))])
+
+;; Convert a field to its corresponding getter and (maybe) setter method names.
+(define-metafunction G
+  field-names : F -> ms
+  [(field-names (var x (= _))) [x]]
+  [(field-names (var x _ ...)) [x (x :=)]])
+
+;; Convert a list of fields to their corresponding getter and (maybe) setter
+;; method names.
+(define-metafunction G
+  fields-names : [F ...] -> ms
+  [(fields-names []) []]
+  [(fields-names [F F_r ...]) [m ... m_r ...]
+   (where [m ...] (field-names F))
+   (where [m_r ...] (fields-names [F_r ...]))])
 
 ;; Convert a list of fields F to a sequence of assignments to the object at
 ;; location ℓ, resulting in the final expression e.
@@ -179,27 +194,33 @@
         uninitialised)
    ;; Allocate the object o substituting local requests to this object, and
    ;; return the resulting reference.
-   (--> [(in-hole E (object (name M (method m _ _)) ...
-                            (name F (var x _ ...)) ...))
+   (--> [(in-hole E (object (name M (method m _ _ ... _)) ... F ...))
          σ]
-        [(in-hole E (subst [m ... x ...] ℓ
+        [(in-hole E (subst [m ... m_f ...] ℓ
                            (subst-self ℓ
                                        (field-assigns ℓ [F ...] (ref ℓ)))))
          σ_p]
         (where ℓ (fresh-location σ))
+        (where [m_f ...] (fields-names [F ...]))
         (where [M_f ...] (fields-methods [F ...]))
         (where (M_p ...) (M ... M_f ...))
-        (where σ_p (store σ [(subst-method [m ... x ...] ℓ M_p) ...]))
-        (side-condition (term (unique [m ... x ...])))
+        (where σ_p (store σ [(subst-method [m ... m_f ...] ℓ M_p) ...]))
+        (side-condition (term (unique [m ... m_f ...])))
         object)
    ;; Allocate an object with getter methods to the parameters whose bodies are
    ;; the arguments, and substitute for unqualified requests to the parameters
    ;; and for self.  Return the body of the method.
    (--> [(in-hole E (request (ref ℓ) m v ..._a)) σ]
-        [(in-hole E (subst [x ...] ℓ_a (subst-self ℓ e))) σ_p]
-        (where [_ ... (method m (x ..._a) e) _ ...] (lookup σ ℓ))
-        (where [ℓ_a σ_p] (allocate σ [(method x () v) ...]))
-        (side-condition (term (unique [x ...])))
+        [(in-hole E (subst [x_p ... m_f ...] ℓ_a
+                           (subst-self ℓ
+                                       (field-assigns ℓ_a [F ...] e))))
+         σ_p]
+        (where [_ ... (method m (x_p ..._a) F ... e) _ ...]
+               (lookup σ ℓ))
+        (where [m_f ...] (fields-names [F ...]))
+        (where [M_f ...] (fields-methods [F ...]))
+        (where [ℓ_a σ_p] (allocate σ [(method x_p () v) ... M_f ...]))
+        (side-condition (term (unique [x_p ... m_f ...])))
         request)
    ;; Set the field in the object and return the following expression.
    (--> [(in-hole E (assign (ref ℓ) x v e)) σ]
