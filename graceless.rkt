@@ -135,7 +135,7 @@
   [(field-methods (var x (= _))) [(method x () uninitialised)]]
   [(field-methods (var x _))
    [(method x () uninitialised)
-    (method (x :=) (y) (assign self x (request y) self))]])
+    (method (x :=) (x) (assign self x (request x) self))]])
 
 ;; Convert a list of fields to their corresponding getter and (maybe) setter
 ;; methods.
