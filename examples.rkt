@@ -13,11 +13,22 @@
   [(names [(method m _ ...) ...]) [m ...]])
 
 (define-metafunction G
+  name< : m m -> boolean
+  [(name< x_1 x_2) ,(symbol<? (term x_1) (term x_2))]
+  [(name< x (_ :=)) #t]
+  [(name< (_ :=) x) #f]
+  [(name< (:= x_1) (:= x_2)) ,(symbol<? (term x_1) (term x_2))])
+
+(define (name<? a b) (term (name< ,a ,b)))
+
+(define-metafunction G
   result-equiv : any any -> boolean
-  [(result-equiv [(ref ℓ) σ] ms) #t
-   (where ms (names (lookup σ ℓ)))]
-  [(result-equiv ms [(ref ℓ) σ]) #t
-   (where ms (names (lookup σ ℓ)))]
+  [(result-equiv [(ref ℓ) σ] ms)
+   ,(equal? (sort (term ms) name<?) (sort (term ms_o) name<?))
+   (where ms_o (names (lookup σ ℓ)))]
+  [(result-equiv ms [(ref ℓ) σ])
+   ,(equal? (sort (term ms) name<?) (sort (term ms_o) name<?))
+   (where ms_o (names (lookup σ ℓ)))]
   [(result-equiv [e σ] e) #t]
   [(result-equiv e [e σ]) #t]
   [(result-equiv _ _) #f])
