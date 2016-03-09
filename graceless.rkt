@@ -34,7 +34,8 @@
   (E E⊥
      hole)
   (ℓ number)
-  (σ (o ...))
+  (σ (Ms ...))
+  (Ms [M ...])
   (ms [m ...]))
 
 ;; Substitute the location ℓ as a reference for the locally defined self,
@@ -95,40 +96,42 @@
 ;; Allocate the object o in the store, returning the newly allocated location
 ;; and the updated store.
 (define-metafunction G
-  allocate : σ o -> [ℓ σ]
-  [(allocate σ o) [(fresh-location σ) (store σ o)]])
+  allocate : σ Ms -> [ℓ σ]
+  [(allocate σ Ms) [(fresh-location σ) (store σ Ms)]])
 
 ;; Store the object o.  The resulting location is the same as calculated by
 ;; fresh-location on the same store, before the object is added.
 (define-metafunction G
-  store : σ o -> σ
-  [(store (o_σ ...) o) (o_σ ... o)])
+  store : σ Ms -> σ
+  [(store (Ms_σ ...) Ms) (Ms_σ ... Ms)])
 
 ;; Fetch a fresh location for the store.
 (define-metafunction G
   fresh-location : σ -> ℓ
   [(fresh-location ()) 0]
-  [(fresh-location (_ o ...)) ,(+ 1 (term (fresh-location (o ...))))])
+  [(fresh-location (_ Ms ...)) ,(+ 1 (term (fresh-location (Ms ...))))])
 
 ;; Search for the object at the location ℓ in the store σ.
 (define-metafunction G
-  lookup : σ ℓ -> o
-  [(lookup (o _ ...) 0) o]
-  [(lookup (_ o ...) ℓ) (lookup (o ...) ,(- (term ℓ) 1))])
+  lookup : σ ℓ -> Ms
+  [(lookup (Ms _ ...) 0) Ms]
+  [(lookup (_ Ms ...) ℓ) (lookup (Ms ...) ,(- (term ℓ) 1))
+   (side-condition (> (term ℓ) 0))])
 
 ;; Execute an assignment in the store σ by setting the field x in the object at
 ;; location ℓ to the value v.  This will fail if no such field exists in the
 ;; object.
 (define-metafunction G
   set-field : σ ℓ x v -> σ
-  [(set-field ((object M_l ... (method x () _) M_r ...) o ...) 0 x v)
-   ((object M_l ... (method x () v) M_r ...) o ...)]
-  [(set-field (o_l o_r ...) ℓ x v) (o_l o_p ...)
-   (where (o_p ...) (set-field (o_r ...) ,(- (term ℓ) 1) x v))])
+  [(set-field ([M_l ... (method x () _) M_r ...] Ms ...) 0 x v)
+   ([M_l ... (method x () v) M_r ...] Ms ...)]
+  [(set-field (Ms_l Ms_r ...) ℓ x v) (Ms_l Ms_p ...)
+   (where (Ms_p ...) (set-field (Ms_r ...) ,(- (term ℓ) 1) x v))
+   (side-condition (> (term ℓ) 0))])
 
 ;; Convert a field to its corresponding getter and (maybe) setter methods.
 (define-metafunction G
-  field-methods : F -> [M ...]
+  field-methods : F -> Ms
   [(field-methods (var x (= _))) [(method x () uninitialised)]]
   [(field-methods (var x _))
    [(method x () uninitialised)
@@ -137,7 +140,7 @@
 ;; Convert a list of fields to their corresponding getter and (maybe) setter
 ;; methods.
 (define-metafunction G
-  fields-methods : [F ...] -> [M ...]
+  fields-methods : [F ...] -> Ms
   [(fields-methods []) []]
   [(fields-methods [F F_r ...]) [M ... M_r ...]
    (where [M ...] (field-methods F))
@@ -176,15 +179,15 @@
         (where ℓ (fresh-location σ))
         (where [M_f ...] (fields-methods [F ...]))
         (where (M_p ...) (M ... M_f ...))
-        (where σ_p (store σ (object (subst-method [m ... x ...] ℓ M_p) ...)))
+        (where σ_p (store σ [(subst-method [m ... x ...] ℓ M_p) ...]))
         object)
    ;; Allocate an object with getter methods to the parameters whose bodies are
    ;; the arguments, and substitute for unqualified requests to the parameters
    ;; and for self.  Return the body of the method.
    (--> [(in-hole E (request (ref ℓ) m v ..._a)) σ]
         [(in-hole E (subst [x ...] ℓ_a (subst-self ℓ e))) σ_p]
-        (where (object _ ... (method m (x ..._a) e) _ ...) (lookup σ ℓ))
-        (where [ℓ_a σ_p] (allocate σ (object (method x () v) ...)))
+        (where [_ ... (method m (x ..._a) e) _ ...] (lookup σ ℓ))
+        (where [ℓ_a σ_p] (allocate σ [(method x () v) ...]))
         request)
    (--> [(in-hole E (assign (ref ℓ) x v e)) σ]
         [(in-hole E e) σ_p]
@@ -279,3 +282,14 @@
           (method val ()
                   (request x))
           (var x (= (request val))))))
+
+(define mutable-field
+  (term (object
+         (var x ()))))
+
+(define field-assign
+  (term (request
+         (object
+          (var x ()))
+         (x :=)
+         (object))))
