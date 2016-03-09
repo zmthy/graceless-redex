@@ -9,9 +9,9 @@
      (request m e ...)
      self)
   (M (method m (x ...) e))
-  (F (var x A))
-  (A ()
-     (= e)
+  (F (var x)
+     (var x A))
+  (A (= e)
      (:= e))
   (o (object M ... F ...))
   (m variable-not-otherwise-mentioned
@@ -33,7 +33,7 @@
       (assign v x E e))
   (E E⊥
      hole)
-  (ℓ number)
+  (ℓ natural)
   (σ (Ms ...))
   (Ms [M ...])
   (ms [m ...]))
@@ -58,7 +58,7 @@
                                                 F ...)))
    (subst [m_l ... m_r ...] ℓ o)]
   [(subst [m_l ... x m_r ...] ℓ (name o (object M ...
-                                                F ... (var x _) _ ...)))
+                                                F ... (var x _ ...) _ ...)))
    (subst [m_l ... m_r ...] ℓ o)]
   [(subst ms ℓ (object M ... F ...)) (object (subst-method ms ℓ M) ...
                                              (subst-field ms ℓ F) ...)]
@@ -84,7 +84,7 @@
 ;; Continue subst through fields into their assignments.
 (define-metafunction G
   subst-field : ms ℓ F -> F
-  [(subst-field ms ℓ (var x A)) (var x (subst-assign ms ℓ e))])
+  [(subst-field ms ℓ (var x A ...)) (var x (subst-assign ms ℓ A) ...)])
 
 ;; Continue subst through assignments.
 (define-metafunction G
@@ -134,7 +134,7 @@
 (define-metafunction G
   field-methods : F -> Ms
   [(field-methods (var x (= _))) [(method x () uninitialised)]]
-  [(field-methods (var x _))
+  [(field-methods (var x _ ...))
    [(method x () uninitialised)
     (method (x :=) (x) (assign self x (request x) self))]])
 
@@ -152,7 +152,7 @@
 (define-metafunction G
   field-assigns : ℓ [F ...] e -> e
   [(field-assigns ℓ [] e) e]
-  [(field-assigns ℓ [(var x ()) F ...] e) (field-assigns ℓ [F ...] e)]
+  [(field-assigns ℓ [(var x) F ...] e) (field-assigns ℓ [F ...] e)]
   [(field-assigns ℓ [(var x (= e_v)) F ...] e)
    (assign (ref ℓ) x e_v (field-assigns ℓ [F ...] e))]
   [(field-assigns ℓ [(var x (:= e_v)) F ...] e)
@@ -171,7 +171,7 @@
    ;; Allocate the object o substituting local requests to this object, and
    ;; return the resulting reference.
    (--> [(in-hole E (object (name M (method m _ _)) ...
-                            (name F (var x _)) ...))
+                            (name F (var x _ ...)) ...))
          σ]
         [(in-hole E (subst [m ... x ...] ℓ
                            (subst-self ℓ
@@ -190,6 +190,7 @@
         (where [_ ... (method m (x ..._a) e) _ ...] (lookup σ ℓ))
         (where [ℓ_a σ_p] (allocate σ [(method x () v) ...]))
         request)
+   ;; Set the field in the object and return the following expression.
    (--> [(in-hole E (assign (ref ℓ) x v e)) σ]
         [(in-hole E e) σ_p]
         (where σ_p (set-field σ ℓ x v))
