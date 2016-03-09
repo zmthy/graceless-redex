@@ -56,8 +56,7 @@
 ;; of names ms.
 (define-metafunction G
   subst : ms ℓ e -> e
-  [(subst [m_l ... m m_r ...] ℓ (name o (object _ ... (method m _ _ ... _) M ...
-                                                F ...)))
+  [(subst [m_l ... m m_r ...] ℓ (name o (object _ ... (method m _ ...) _ ...)))
    (subst [m_l ... m_r ...] ℓ o)]
   [(subst [m_l ... x m_r ...] ℓ (name o (object _ ... F _ ...)))
    (subst [m_l ... m_r ...] ℓ o)
@@ -78,7 +77,7 @@
 (define-metafunction G
   subst-method : ms ℓ M -> M
   [(subst-method [m_l ... x m_r ...] ℓ
-                 (name M (method m (_ ... x _ ...) _ ... _)))
+                 (name M (method m (_ ... x _ ...) _ ...)))
    (subst-method [m_l ... m_r ...] ℓ M)]
   [(subst-method ms ℓ (method m (x ...) F ... e))
    (method m (x ...) (subst-field ms ℓ F) ... (subst ms ℓ e))])
@@ -188,7 +187,7 @@
         uninitialised)
    ;; Allocate the object o substituting local requests to this object, and
    ;; return the resulting reference.
-   (--> [(in-hole E (object (name M (method m _ _ ... _)) ... F ...))
+   (--> [(in-hole E (object (name M (method m _ ...)) ... F ...))
          σ]
         [(in-hole E (subst [m ... m_f ...] ℓ
                            (subst-self ℓ
@@ -263,6 +262,3 @@
 ;; Run the traces function on the given term as an initial program with the
 ;; reduction relation -->G.
 (define (traces-->G t) (traces -->G (program t)))
-
-;; Test if expressions can cause a Racket error.
-(redex-check Graceless e (eval-->G (term e)))

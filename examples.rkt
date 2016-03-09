@@ -5,9 +5,12 @@
 
 (provide (all-defined-out))
 
+;; Test if expressions can cause a Racket error.
+(redex-check Graceless e (eval-->G (term e)))
+
 (define-metafunction G
   names : Ms -> ms
-  [(names [(method m _ _ ... _) ...]) [m ...]])
+  [(names [(method m _ ...) ...]) [m ...]])
 
 (define-metafunction G
   result-equiv : any any -> boolean
