@@ -91,7 +91,7 @@
 
 (define simple-field
   (term (object
-          (var x (= self)))))
+          (def x = self))))
 
 (test-->>G simple-field
            (term [x]))
@@ -100,7 +100,7 @@
   (term (object
           (method m ()
                   self)
-          (var x (= self)))))
+          (def x = self))))
 
 (test-->>G simple-field
            (term [x]))
@@ -109,7 +109,7 @@
   (term (object
           (method val ()
                   (request x))
-          (var x (= (request val))))))
+          (def x = (request val)))))
 
 (test-->>G uninit-request
            (term uninitialised))
@@ -124,7 +124,7 @@
 (define local-field-assign
   (term (object
          (var x)
-         (var y (= (request (x :=) self))))))
+         (def y = (request (x :=) self)))))
 
 (test-->>G local-field-assign
            (term [x (x :=) y]))
@@ -143,7 +143,7 @@
   (term (request
          (object
           (method m ()
-                  (var x (= self))
+                  (def x = self)
                   (request x)))
          m)))
 

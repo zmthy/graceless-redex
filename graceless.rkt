@@ -11,10 +11,9 @@
      (request m e ...)
      self)
   (M (method m (x ...) F ... e))
-  (F (var x)
-     (var x A))
-  (A (= e)
-     (:= e))
+  (F (def x = e)
+     (var x)
+     (var x := e))
   (o (object M ... F ...))
   (m variable-not-otherwise-mentioned
      (variable-not-otherwise-mentioned :=))
@@ -60,9 +59,9 @@
   [(subst [m_l ... m m_r ...] ℓ (name o (object _ ... (method m _ _ ... _) M ...
                                                 F ...)))
    (subst [m_l ... m_r ...] ℓ o)]
-  [(subst [m_l ... x m_r ...] ℓ (name o (object M ...
-                                                F ... (var x _ ...) _ ...)))
-   (subst [m_l ... m_r ...] ℓ o)]
+  [(subst [m_l ... x m_r ...] ℓ (name o (object _ ... F _ ...)))
+   (subst [m_l ... m_r ...] ℓ o)
+   (where [x _ ...] (field-names F))]
   [(subst ms ℓ (object M ... F ...)) (object (subst-method ms ℓ M) ...
                                              (subst-field ms ℓ F) ...)]
   [(subst ms ℓ (request e m e_a ...))
@@ -87,14 +86,9 @@
 ;; Continue subst through fields into their assignments.
 (define-metafunction G
   subst-field : ms ℓ F -> F
-  [(subst-field ms ℓ (var x A ...)) (var x (subst-assign ms ℓ A) ...)])
-
-;; Continue subst through assignments.
-(define-metafunction G
-  subst-assign : ms ℓ A -> A
-  [(subst-assign _ _ ()) ()]
-  [(subst-assign ms ℓ (= e)) (= (subst ms ℓ e))]
-  [(subst-assign ms ℓ (:= e)) (:= (subst ms ℓ e))])
+  [(subst-field ms ℓ (def x = e)) (def x = (subst ms ℓ e))]
+  [(subst-field ms ℓ (var x)) (var x)]
+  [(subst-field ms ℓ (var x := e)) (var x := (subst ms ℓ e))])
 
 ;; Allocate the object o in the store, returning the newly allocated location
 ;; and the updated store.
@@ -136,7 +130,7 @@
 ;; Convert a field to its corresponding getter and (maybe) setter methods.
 (define-metafunction G
   field-methods : F -> Ms
-  [(field-methods (var x (= _))) [(method x () uninitialised)]]
+  [(field-methods (def x = _)) [(method x () uninitialised)]]
   [(field-methods (var x _ ...))
    [(method x () uninitialised)
     (method (x :=) (x) (assign self x (request x) (request x)))]])
@@ -153,7 +147,7 @@
 ;; Convert a field to its corresponding getter and (maybe) setter method names.
 (define-metafunction G
   field-names : F -> ms
-  [(field-names (var x (= _))) [x]]
+  [(field-names (def x = _)) [x]]
   [(field-names (var x _ ...)) [x (x :=)]])
 
 ;; Convert a list of fields to their corresponding getter and (maybe) setter
@@ -170,10 +164,10 @@
 (define-metafunction G
   field-assigns : ℓ [F ...] e -> e
   [(field-assigns ℓ [] e) e]
-  [(field-assigns ℓ [(var x) F ...] e) (field-assigns ℓ [F ...] e)]
-  [(field-assigns ℓ [(var x (= e_v)) F ...] e)
+  [(field-assigns ℓ [(def x = e_v) F ...] e)
    (assign (ref ℓ) x e_v (field-assigns ℓ [F ...] e))]
-  [(field-assigns ℓ [(var x (:= e_v)) F ...] e)
+  [(field-assigns ℓ [(var x) F ...] e) (field-assigns ℓ [F ...] e)]
+  [(field-assigns ℓ [(var x := e_v) F ...] e)
    (assign (ref ℓ) x e_v (field-assigns ℓ [F ...] e))])
 
 ;; Ensure that the given names are unique.
