@@ -37,6 +37,7 @@
      hole)
   (ℓ natural)
   (σ (Ms ...))
+  (p [e σ])
   (Ms [M ...])
   (ms [m ...]))
 
@@ -165,7 +166,7 @@
 (define -->G
   (reduction-relation
    G
-   #:domain [e σ]
+   #:domain p
    ;; Uninitialised terminates the program.
    (--> [(in-hole E⊥ uninitialised) σ]
         [uninitialised σ]
@@ -200,16 +201,17 @@
 
 ;; Evaluate an expression starting with an empty store.
 (define-metafunction G
-  eval : e -> v or uninitialised
-  [(eval e) (run [e ()])])
+  eval : e -> e
+  [(eval e) ,(car (term (run [e ()])))])
 
 ;; Apply the reduction relation -->G until the result is a value.
 (define-metafunction G
-  run : [e σ] -> v or uninitialised
-  [(run [uninitialised σ]) uninitialised]
-  [(run [v σ]) v]
-  [(run any_pair) (run any_again)
-   (where (any_again) ,(apply-reduction-relation -->G (term any_pair)))])
+  run : p -> [e σ]
+  [(run [uninitialised σ]) [uninitialised σ]]
+  [(run [(ref ℓ) σ]) [(object M ...) σ]
+   (where [M ...] (lookup σ ℓ))]
+  [(run p) (run p_p)
+   (where (p_p) ,(apply-reduction-relation -->G (term p)))])
 
 ;; Wrap a term t into an initial program with an empty store.
 (define (program t) (term [,t ()]))
@@ -217,8 +219,13 @@
 ;; Progress the program p by one step with the reduction relation -->G.
 (define (step-->G p) (apply-reduction-relation -->G p))
 
-;; Run the term t as an initial program with the reduction relation -->G.
-(define (eval-->G t) (term (eval ,(program t))))
+;; Run the term t as an initial program with the reduction relation -->G,
+;; returning the resulting object.
+(define (eval-->G t) (term (eval ,t)))
+
+;; Run the term t as an initial program with the reduction relation -->G,
+;; returning the resulting object and store.
+(define (run-->G t) (term (run [,t ()])))
 
 ;; Run the traces function on the given term as an initial program with the
 ;; reduction relation -->G.
