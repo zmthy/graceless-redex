@@ -18,12 +18,12 @@
   (E⊥ (object (inherits E) M ... F ...)))
 
 (define-metafunction GI
-  override : Ms ms -> Ms
-  [(override [] _) []]
-  [(override [(method m _ _ ... _) M ...] (name ms [_ ... m _ ...]))
-   (override [M ...] ms)]
-  [(override [M M_i ...] ms) [M M_p ...]
-   (where [M_p ...] (override [M_i ...] ms))])
+  override : M ... m ... -> [M ...]
+  [(override m ...) []]
+  [(override (method m _ _) M ... m_l ... m m_r ...)
+   (override M ... m_l ... m m_r ...)]
+  [(override M M_i ... m ...) [M M_p ...]
+   (where [M_p ...] (override M_i ... m ...))])
 
 (define -->GI
   (extend-reduction-relation
@@ -31,11 +31,11 @@
    GI
    #:domain p
    (--> [(in-hole E (object (inherits (ref ℓ))
-                            (name M (method m _ ...)) ... F ...)) σ]
-        [(in-hole E (object M_i ... M ... F ...)) σ]
-        (where Ms (lookup σ ℓ))
-        (where [ms ...] (fields-names [F ...]))
-        (where [M_i ...] (override Ms [m ... ms ...]))
+                            (name M (method m _ _)) ... F ...)) σ]
+        [(in-hole E (object M_s ... M ... F ...)) σ]
+        (where [M_i ...] (lookup σ ℓ))
+        (where [m_f ...] (fields-names F ...))
+        (where [M_s ...] (override M_i ... m ... m_f ...))
         inherits)))
 
 ;; Progress the program p by one step with the reduction relation -->G.

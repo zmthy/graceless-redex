@@ -9,7 +9,7 @@
 (redex-check Graceless-Inheritance e (eval-->GI (term e)))
 
 (define-metafunction GI
-  names : Ms -> ms
+  names : [M ...] -> [m ...]
   [(names [(method m _ ...) ...]) [m ...]])
 
 (define-metafunction GI
@@ -23,12 +23,12 @@
 
 (define-metafunction GI
   result-equiv : any any -> boolean
-  [(result-equiv [(ref ℓ) σ] ms)
-   ,(equal? (sort (term ms) name<?) (sort (term ms_o) name<?))
-   (where ms_o (names (lookup σ ℓ)))]
-  [(result-equiv ms [(ref ℓ) σ])
-   ,(equal? (sort (term ms) name<?) (sort (term ms_o) name<?))
-   (where ms_o (names (lookup σ ℓ)))]
+  [(result-equiv [(ref ℓ) σ] [m ...])
+   ,(equal? (sort (term [m ...]) name<?) (sort (term [m_o ...]) name<?))
+   (where [m_o ...] (names (lookup σ ℓ)))]
+  [(result-equiv [m ...] [(ref ℓ) σ])
+   ,(equal? (sort (term [m ...]) name<?) (sort (term [m_o ...]) name<?))
+   (where [m_o ...] (names (lookup σ ℓ)))]
   [(result-equiv [e σ] e) #t]
   [(result-equiv e [e σ]) #t]
   [(result-equiv _ _) #f])
