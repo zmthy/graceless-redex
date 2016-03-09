@@ -161,6 +161,12 @@
   [(field-assigns ℓ [(var x (:= e_v)) F ...] e)
    (assign (ref ℓ) x e_v (field-assigns ℓ [F ...] e))])
 
+;; Ensure that the given names are unique.
+(define-metafunction G
+  unique : ms -> boolean
+  [(unique [_ ... m _ ... m _ ...]) #f]
+  [(unique [_ ...]) #t])
+
 ;; Small-step dynamic semantics of Graceless, operating on an expression e
 ;; paired with a store σ.
 (define -->G
@@ -184,6 +190,7 @@
         (where [M_f ...] (fields-methods [F ...]))
         (where (M_p ...) (M ... M_f ...))
         (where σ_p (store σ [(subst-method [m ... x ...] ℓ M_p) ...]))
+        (side-condition (term (unique [m ... x ...])))
         object)
    ;; Allocate an object with getter methods to the parameters whose bodies are
    ;; the arguments, and substitute for unqualified requests to the parameters
@@ -192,6 +199,7 @@
         [(in-hole E (subst [x ...] ℓ_a (subst-self ℓ e))) σ_p]
         (where [_ ... (method m (x ..._a) e) _ ...] (lookup σ ℓ))
         (where [ℓ_a σ_p] (allocate σ [(method x () v) ...]))
+        (side-condition (term (unique [x ...])))
         request)
    ;; Set the field in the object and return the following expression.
    (--> [(in-hole E (assign (ref ℓ) x v e)) σ]
@@ -199,34 +207,39 @@
         (where σ_p (set-field σ ℓ x v))
         assign)))
 
-;; Evaluate an expression starting with an empty store.
-(define-metafunction G
-  eval : e -> e
-  [(eval e) ,(car (term (run [e ()])))])
-
-;; Apply the reduction relation -->G until the result is a value.
-(define-metafunction G
-  run : p -> [e σ]
-  [(run [uninitialised σ]) [uninitialised σ]]
-  [(run [(ref ℓ) σ]) [(object M ...) σ]
-   (where [M ...] (lookup σ ℓ))]
-  [(run p) (run p_p)
-   (where (p_p) ,(apply-reduction-relation -->G (term p)))])
-
 ;; Wrap a term t into an initial program with an empty store.
 (define (program t) (term [,t ()]))
 
 ;; Progress the program p by one step with the reduction relation -->G.
 (define (step-->G p) (apply-reduction-relation -->G p))
 
+;; Evaluate an expression starting with an empty store.
+(define-metafunction G
+  eval : e -> e
+  [(eval e) ,(car (term (run [e ()])))])
+
+;; Apply the reduction relation -->G until the result is a value or the program
+;; gets stuck or has an error.
+(define-metafunction G
+  run : p -> [e σ]
+  [(run [uninitialised σ]) [uninitialised σ]]
+  [(run [(ref ℓ) σ]) [(object M ...) σ]
+   (where [M ...] (lookup σ ℓ))]
+  [(run p) (run p_p)
+   (where (p_p) ,(step-->G (term p)))]
+  [(run p) p])
+
 ;; Run the term t as an initial program with the reduction relation -->G,
-;; returning the resulting object.
+;; returning the resulting object, stuck program, or error.
 (define (eval-->G t) (term (eval ,t)))
 
 ;; Run the term t as an initial program with the reduction relation -->G,
-;; returning the resulting object and store.
+;; returning the resulting object, stuck program, or error, and the store.
 (define (run-->G t) (term (run [,t ()])))
 
 ;; Run the traces function on the given term as an initial program with the
 ;; reduction relation -->G.
 (define (traces-->G t) (traces -->G (program t)))
+
+;; Test if expressions can cause a Racket error.
+(redex-check Graceless e (eval-->G (term e)))
