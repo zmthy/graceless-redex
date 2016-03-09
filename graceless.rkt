@@ -108,26 +108,27 @@
 ;; Fetch a fresh location for the store.
 (define-metafunction G
   fresh-location : σ -> ℓ
-  [(fresh-location ()) 0]
-  [(fresh-location (_ Ms ...)) ,(+ 1 (term (fresh-location (Ms ...))))])
+  [(fresh-location σ) ,(length (term σ))])
 
 ;; Search for the object at the location ℓ in the store σ.
 (define-metafunction G
   lookup : σ ℓ -> Ms
-  [(lookup (Ms _ ...) 0) Ms]
-  [(lookup (_ Ms ...) ℓ) (lookup (Ms ...) ,(- (term ℓ) 1))
-   (side-condition (> (term ℓ) 0))])
+  [(lookup σ ℓ) ,(list-ref (term σ) (term ℓ))])
 
 ;; Execute an assignment in the store σ by setting the field x in the object at
 ;; location ℓ to the value v.  This will fail if no such field exists in the
 ;; object.
 (define-metafunction G
   set-field : σ ℓ x v -> σ
-  [(set-field ([M_l ... (method x () _) M_r ...] Ms ...) 0 x v)
-   ([M_l ... (method x () v) M_r ...] Ms ...)]
-  [(set-field (Ms_l Ms_r ...) ℓ x v) (Ms_l Ms_p ...)
-   (where (Ms_p ...) (set-field (Ms_r ...) ,(- (term ℓ) 1) x v))
-   (side-condition (> (term ℓ) 0))])
+  [(set-field σ ℓ x v) ,(list-update (term σ)
+                                     (term ℓ)
+                                     (λ (Ms) (term (update-method ,Ms x v))))])
+
+;; Set the method named x in the method list Ms to return the value v.
+(define-metafunction G
+  update-method : Ms x v -> Ms
+  [(update-method [M_l ... (method x () _) M_r ...] x v)
+   [M_l ... (method x () v) M_r ...]])
 
 ;; Convert a field to its corresponding getter and (maybe) setter methods.
 (define-metafunction G
