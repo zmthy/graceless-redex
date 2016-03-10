@@ -1,9 +1,9 @@
 #lang racket
 
-(require redex)
-(require "forwarding.rkt")
-(require "concatenation.rkt")
-(require "delegation.rkt")
+(require redex
+         "forwarding.rkt"
+         "concatenation.rkt"
+         "delegation.rkt")
 
 (provide (all-defined-out)
          (all-from-out "forwarding.rkt")

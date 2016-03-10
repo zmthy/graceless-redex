@@ -1,7 +1,7 @@
 #lang racket
 
-(require redex)
-(require "graceless.rkt")
+(require redex
+         "graceless.rkt")
 
 (provide (all-defined-out)
          (all-from-out "graceless.rkt"))

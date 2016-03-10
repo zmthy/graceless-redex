@@ -1,7 +1,7 @@
 #lang racket
 
-(require redex)
-(require "inheritance.rkt")
+(require redex
+         "inheritance.rkt")
 
 (provide (except-out (all-defined-out)
                      eval
@@ -15,18 +15,27 @@
    -->GI
    GI
    #:domain p
-   ;; Allocate the object o substituting local requests to this object, and
-   ;; return the resulting reference.
-   (--> [(in-hole E (object (name M (method m _ _)) ... F ...))
-         σ]
-        [(in-hole E (subst-object ℓ m ... m_f ...
-                                  (field-assigns ℓ F ... (ref ℓ))))
+   ;; Allocate the object o, converting fields into assignments with local
+   ;; requests substituted to the new object, and ultimately return the
+   ;; resulting reference.
+   (--> [(in-hole E (name o (object M ... F ...))) σ]
+        ;; This substitution is into the body of the object.  The use of self
+        ;; and local requests in the method bodies will be handled when they are
+        ;; requested.
+        [(in-hole E (subst [ℓ self] [ℓ m ...] (field-assigns ℓ F ... (ref ℓ))))
+         ;; Under concatenation, no substitution occurs in the methods that are
+         ;; placed in the store.
          (store σ [M ...
                    M_f ...])]
+        ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))
-        (where (m_f ...) (fields-names F ...))
-        (where (M_f ...) (fields-methods F ...))
-        (side-condition (term (unique m ... m_f ...)))
+        ;; The method names are used for substituting local requests, as well as
+        ;; ensuring the resulting object has unique method names.
+        (where (m ...) (object-names o))
+        ;; The generated getter and setter methods are included in the store.
+        (where (M_f ...) (field-methods F ...))
+        ;; An object's method names must be unique.
+        (side-condition (term (unique m ...)))
         object)))
 
 ;; Progress the program p by one step with the reduction relation -->GC.
