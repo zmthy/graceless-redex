@@ -1,13 +1,19 @@
 #lang racket
 
 (require redex)
-(require "inheritance.rkt")
+(require "forwarding.rkt")
+(require "concatenation.rkt")
+(require "delegation.rkt")
 
 (provide (all-defined-out)
-         (all-from-out "inheritance.rkt"))
+         (all-from-out "forwarding.rkt")
+         (all-from-out "concatenation.rkt")
+         (all-from-out "delegation.rkt"))
 
 ;; Test if expressions can cause a Racket error.
-(redex-check Graceless-Inheritance e (eval-->GI (term e)))
+(redex-check Graceless-Inheritance e (eval-->GF (term e)))
+(redex-check Graceless-Inheritance e (eval-->GC (term e)))
+(redex-check Graceless-Inheritance e (eval-->GD (term e)))
 
 (define-metafunction GI
   names : [M ...] -> [m ...]
@@ -34,12 +40,17 @@
   [(result-equiv e [e σ]) #t]
   [(result-equiv _ _) #f])
 
-(define (test-->>GI t r)
+(define (test-->>G a t r)
   (test-->>
-   -->GI
+   a
    #:equiv (λ (a b) (term (result-equiv ,a ,b)))
    (program t)
    r))
+
+(define (test-->>GI t r)
+  (test-->>G -->GF t r)
+  (test-->>G -->GC t r)
+  (test-->>G -->GD t r))
 
 (define empty-inherits
   (term (object

@@ -56,6 +56,12 @@
   subst-request : ℓ [x v] ... e -> e
   [(subst-request ℓ [x v] ... e) (subst [x v] ... (subst-self ℓ e))])
 
+;; Substitute local requests for self and its methods in the method M.
+(define-metafunction GI
+  subst-self-rec-method : ℓ m ... M -> M
+  [(subst-self-rec-method ℓ m_s ... (method m (x ...) e))
+   (subst-rec-method ℓ m_s ... (method m (x ...) (subst-self ℓ e)))])
+
 ;; Substitute any local request for each x with the corresponding v.
 (define-metafunction GI
   subst : [x v] ... e -> e
@@ -242,8 +248,7 @@
   [(unique _ ... m _ ... m _ ...) #f]
   [(unique _ ...) #t])
 
-;; Small-step dynamic semantics of Graceless, operating on an expression e
-;; paired with a store σ.
+;; Partial small-step dynamic semantics of Graceless extended with inheritance.
 (define -->GI
   (reduction-relation
    GI
@@ -262,19 +267,6 @@
         (where [M_s ...] (override M_i ... m ... m_f ...))
         (where [M_p ... F_p ...] (subst-inherits [ℓ m_i ...] s ... M ... F ...))
         inherits)
-   ;; Allocate the object o substituting local requests to this object, and
-   ;; return the resulting reference.
-   (--> [(in-hole E (object (name M (method m _ _)) ... F ...))
-         σ]
-        [(in-hole E (subst-object ℓ m ... m_f ...
-                                  (field-assigns ℓ F ... (ref ℓ))))
-         (store σ [(subst-rec-method ℓ m ... m_f ... M_p) ...])]
-        (where ℓ (fresh-location σ))
-        (where (m_f ...) (fields-names F ...))
-        (where (M_f ...) (fields-methods F ...))
-        (where (M_p ...) (M ... M_f ...))
-        (side-condition (term (unique m ... m_f ...)))
-        object)
    ;; Substitute for unqualified requests to the parameters, and return the body
    ;; of the method.
    (--> [(in-hole E (request (ref ℓ) m v ..._a)) σ]
@@ -287,34 +279,3 @@
         [(in-hole E e) σ_p]
         (where σ_p (set-field σ ℓ x v))
         assign)))
-
-;; Progress the program p by one step with the reduction relation -->G.
-(define (step-->GI p) (apply-reduction-relation -->GI p))
-
-;; Evaluate an expression starting with an empty store.
-(define-metafunction GI
-  eval : e -> e
-  [(eval e) ,(car (term (run [e ()])))])
-
-;; Apply the reduction relation -->G until the result is a value or the program
-;; gets stuck or has an error.
-(define-metafunction GI
-  run : p -> [e σ]
-  [(run [uninitialised σ]) [uninitialised σ]]
-  [(run [(ref ℓ) σ]) [(object M ...) σ]
-   (where [M ...] (lookup σ ℓ))]
-  [(run p) (run p_p)
-   (where (p_p) ,(step-->GI (term p)))]
-  [(run p) p])
-
-;; Run the term t as an initial program with the reduction relation -->G,
-;; returning the resulting object, stuck program, or error.
-(define (eval-->GI t) (term (eval ,t)))
-
-;; Run the term t as an initial program with the reduction relation -->G,
-;; returning the resulting object, stuck program, or error, and the store.
-(define (run-->GI t) (term (run [,t ()])))
-
-;; Run the traces function on the given term as an initial program with the
-;; reduction relation -->G.
-(define (traces-->GI t) (traces -->GI (program t)))
