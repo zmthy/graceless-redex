@@ -47,10 +47,19 @@
    (program t)
    r))
 
-(define (test-->>GI t r)
-  (test-->>G -->GF t r)
-  (test-->>G -->GC t r)
+(define (test-->>GF t r)
+  (test-->>G -->GF t r))
+
+(define (test-->>GC t r)
+  (test-->>G -->GC t r))
+
+(define (test-->>GD t r)
   (test-->>G -->GD t r))
+
+(define (test-->>GI t r)
+  (test-->>GF t r)
+  (test-->>GC t r)
+  (test-->>GD t r))
 
 (define empty-inherits
   (term (object
@@ -141,3 +150,45 @@
 
 (test-->>GI shadowed-by-super-method
             (term done))
+
+(define down-call
+  (term (request
+         (object
+          (inherits
+           (object
+            (method m ()
+                    (request x))
+            (def x = done)))
+          (def x = self))
+         m)))
+
+(test-->>GF down-call
+            (term done))
+
+(test-->>GC down-call
+            (term [m x]))
+
+(test-->>GD down-call
+            (term [m x]))
+
+(define field-mutation
+  (term (request
+         (object
+          (def a =
+            (object
+             (var x := done)))
+          (def b =
+            (object
+             (inherits (request a))
+             (def y = (request (x :=) self))))
+          (def c = (request (request a) x)))
+         c)))
+
+(test-->>GF field-mutation
+            (term [x (x :=) y]))
+
+(test-->>GC field-mutation
+            (term done))
+
+(test-->>GD field-mutation
+            (term [x (x :=) y]))

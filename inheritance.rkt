@@ -9,13 +9,17 @@
 (provide (all-defined-out)
          program)
 
+;; The core syntax of Graceless extended with inheritance.
 (define-extended-language Graceless-Inheritance Graceless
   (o ....
      (object I M ... F ...))
   (I (inherits e)))
 
+;; The extended inheritance language extended with the runtime system of
+;; Graceless.
 (define-union-language GIU Graceless-Inheritance G)
 
+;; The Graceless runtime extended with inheritance core and runtime syntax.
 (define-extended-language GI GIU
   (I (s ... inherits e))
   (s [ℓ m ...]
@@ -23,6 +27,7 @@
   (E⊥ ....
       (object (s ... inherits E) M ... F ...)))
 
+;; Remove any methods named m from M.
 (define-metafunction GI
   override : M ... m ... -> [M ...]
   [(override m ...) []]
@@ -30,6 +35,15 @@
    (override M ... m_l ... m m_r ...)]
   [(override M M_i ... m ...) [M M_p ...]
    (where [M_p ...] (override M_i ... m ...))])
+
+;; Remove any substitutions named m from s.
+(define-metafunction GI
+  remove-named : m ... s ... -> (s ...)
+  [(remove-named m_l ... x m_r ... s_l ... [x _] s_r ...)
+   (remove-named m_l ... x m_r ... s_l ... s_r ...)]
+  [(remove-named m_l ... m m_r ... s_l ... [ℓ m_sl ... m m_sr ...])
+   (remove-named m_l ... m m_r ... s_l ... [ℓ m_sl ... m_sr ...])]
+  [(remove-named m ... s ...) (s ...)])
 
 ;; Perform the substitutions s through the methods and fields M and F, in the
 ;; order they're provided.
@@ -53,8 +67,9 @@
 ;; references to self with ℓ and unqualified requests to each x with the
 ;; corresponding v.
 (define-metafunction GI
-  subst-request : ℓ [x v] ... e -> e
-  [(subst-request ℓ [x v] ... e) (subst [x v] ... (subst-self ℓ e))])
+  subst-request : ℓ m ... [x v] ... e -> e
+  [(subst-request ℓ m ... [x v] ... e)
+   (subst-rec ℓ m ... (subst [x v] ... (subst-self ℓ e)))])
 
 ;; Substitute local requests for self and its methods in the method M.
 (define-metafunction GI
@@ -263,15 +278,17 @@
                             (name M (method m _ _)) ... F ...)) σ]
         [(in-hole E (object M_s ... M_p ... F_p ...)) σ]
         (where [(name M_i (method m_i _ _)) ...] (lookup σ ℓ))
-        (where [m_f ...] (fields-names F ...))
+        (where (m_f ...) (fields-names F ...))
         (where [M_s ...] (override M_i ... m ... m_f ...))
-        (where [M_p ... F_p ...] (subst-inherits [ℓ m_i ...] s ... M ... F ...))
+        (where (s_p ...) (remove-named m_i ... s ...))
+        (where [M_p ... F_p ...] (subst-inherits s_p ... M ... F ...))
         inherits)
    ;; Substitute for unqualified requests to the parameters, and return the body
    ;; of the method.
    (--> [(in-hole E (request (ref ℓ) m v ..._a)) σ]
-        [(in-hole E (subst-request ℓ [x v] ... e)) σ]
-        (where [_ ... (method m (x ..._a) e) _ ...] (lookup σ ℓ))
+        [(in-hole E (subst-request ℓ m_o ... [x v] ... e)) σ]
+        (where [(name M (method m_o _ _)) ...] (lookup σ ℓ))
+        (where [_ ... (method m (x ..._a) e) _ ...] [M ...])
         (side-condition (term (unique x ...)))
         request)
    ;; Set the field in the object and return the following expression.
