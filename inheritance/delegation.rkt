@@ -1,12 +1,12 @@
 #lang racket
 
 (require redex
-         "inheritance.rkt")
+         "common.rkt")
 
 (provide (except-out (all-defined-out)
                      eval
                      run)
-         (all-from-out "inheritance.rkt"))
+         (all-from-out "common.rkt"))
 
 ;; Small-step dynamic semantics of Graceless extended with delegating
 ;; inheritance.

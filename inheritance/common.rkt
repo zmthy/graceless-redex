@@ -1,8 +1,8 @@
 #lang racket
 
 (require redex
-         "graceless.rkt"
-         (prefix-in graceless: "graceless.rkt"))
+         "../graceless.rkt"
+         (prefix-in graceless: "../graceless.rkt"))
 
 (provide (all-defined-out)
          remove-shadows
