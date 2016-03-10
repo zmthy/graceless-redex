@@ -3,7 +3,8 @@
 (require redex)
 (require "graceless.rkt")
 
-(provide (all-defined-out))
+(provide (all-defined-out)
+         (all-from-out "graceless.rkt"))
 
 ;; Test if expressions can cause a Racket error.
 (redex-check Graceless e (eval-->G (term e)))
@@ -162,3 +163,17 @@
 
 (test-->>G done-argument
            (term done))
+
+(define scoped-field
+  (term (request
+         (object
+          (method m () self)
+          (def x =
+            (request
+             (object
+              (def y = (request m)))
+             y)))
+         x)))
+
+(test-->>G scoped-field
+           (term [m x]))

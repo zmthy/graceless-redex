@@ -3,7 +3,8 @@
 (require redex)
 (require "inheritance.rkt")
 
-(provide (all-defined-out))
+(provide (all-defined-out)
+         (all-from-out "inheritance.rkt"))
 
 ;; Test if expressions can cause a Racket error.
 (redex-check Graceless-Inheritance e (eval-->GI (term e)))
@@ -73,3 +74,59 @@
 
 (test-->>GI field-override
             (term [x (x :=)]))
+
+(define field-scoped
+  (term (object
+         (def x = self)
+         (def y =
+           (object
+            (inherits (object))
+            (def z = (request x)))))))
+
+(test-->>GI field-scoped
+            (term [x y]))
+
+(define method-scoped
+  (term (object
+         (method m () self)
+         (def x =
+           (object
+            (inherits (object))
+            (def x = (request m)))))))
+
+(test-->>GI method-scoped
+            (term [m x]))
+
+(define shadowed-by-super-field
+  (term (request
+         (object
+          (def x = self)
+          (def y =
+            (request
+             (object
+              (inherits
+               (object
+                (def x = done)))
+              (def z = (request x)))
+             z)))
+         y)))
+
+(test-->>GI shadowed-by-super-field
+            (term done))
+
+(define shadowed-by-super-method
+  (term (request
+         (object
+          (method m () self)
+          (def x =
+            (request
+             (object
+              (inherits
+               (object
+                (method m () done)))
+              (def y = (request m)))
+             y)))
+         x)))
+
+(test-->>GI shadowed-by-super-method
+            (term done))
