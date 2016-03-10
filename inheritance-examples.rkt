@@ -192,3 +192,51 @@
 
 (test-->>GD field-mutation
             (term [x (x :=) y]))
+
+(define super-ref
+  (term (request
+         (object
+          (inherits
+           (object))
+          (def x = super))
+         x)))
+
+(test-->>GI super-ref
+            (term []))
+
+(define super-request
+  (term (request
+         (object
+          (inherits
+           (object
+            (method m () self)))
+          (method m () done)
+          (def x = (request super m)))
+         x)))
+
+(test-->>GI super-request
+            (term [m]))
+
+(define shadowed-delayed-direct
+  (term (object
+         (def x =
+           (object
+            (inherits
+             (object))
+            (def x = done)
+            (def y = (request x)))))))
+
+(test-->>GI shadowed-delayed-direct
+            (term [x]))
+
+(define shadowed-delayed-indirect
+  (term (object
+         (def x =
+           (object
+            (inherits
+             (object
+              (def x = done)))
+            (def y = (request x)))))))
+
+(test-->>GI shadowed-delayed-indirect
+            (term [x]))
