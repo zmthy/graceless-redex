@@ -21,11 +21,11 @@
          σ]
         [(in-hole E (subst-object ℓ m ... m_f ...
                                   (field-assigns ℓ F ... (ref ℓ))))
-         (store σ [(subst-self-rec-method ℓ m ... m_f ... M_p) ...])]
+         (store σ [(subst-self-rec-method ℓ m ... m_f ... M) ...
+                   (subst-self-rec-method ℓ m ... m_f ... M_f) ...])]
         (where ℓ (fresh-location σ))
         (where (m_f ...) (fields-names F ...))
         (where (M_f ...) (fields-methods F ...))
-        (where (M_p ...) (M ... M_f ...))
         (side-condition (term (unique m ... m_f ...)))
         object)))
 

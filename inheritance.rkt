@@ -38,12 +38,12 @@
 
 ;; Remove any substitutions named m from s.
 (define-metafunction GI
-  remove-named : m ... s ... -> (s ...)
-  [(remove-named m_l ... x m_r ... s_l ... [x _] s_r ...)
-   (remove-named m_l ... x m_r ... s_l ... s_r ...)]
-  [(remove-named m_l ... m m_r ... s_l ... [ℓ m_sl ... m m_sr ...])
-   (remove-named m_l ... m m_r ... s_l ... [ℓ m_sl ... m_sr ...])]
-  [(remove-named m ... s ...) (s ...)])
+  remove-subst-named : m ... s ... -> (s ...)
+  [(remove-subst-named m_l ... x m_r ... s_l ... [x _] s_r ...)
+   (remove-subst-named m_l ... x m_r ... s_l ... s_r ...)]
+  [(remove-subst-named m_l ... m m_r ... s_l ... [ℓ m_sl ... m m_sr ...])
+   (remove-subst-named m_l ... m m_r ... s_l ... [ℓ m_sl ... m_sr ...])]
+  [(remove-subst-named m ... s ...) (s ...)])
 
 ;; Perform the substitutions s through the methods and fields M and F, in the
 ;; order they're provided.
@@ -77,9 +77,10 @@
   [(subst-self-rec-method ℓ m_s ... (method m (x ...) e))
    (subst-rec-method ℓ m_s ... (method m (x ...) (subst-self ℓ e)))])
 
-;; Substitute any local request for each x with the corresponding v.
+;; Substitute any local request per the substitutions s.
 (define-metafunction GI
-  subst : [x v] ... e -> e
+  subst : s ... e -> e
+  ;; Substitutions are delayed by inherits clauses.
   [(subst [x v] ... (object (s ... inherits e) M ... F ...))
    (object ([x v] ... s ... inherits (subst [x v] ... e)) M ... F ...)]
   [(subst [x_l v_l] ... [x _] [x_r v_r] ...
@@ -280,7 +281,7 @@
         (where [(name M_i (method m_i _ _)) ...] (lookup σ ℓ))
         (where (m_f ...) (fields-names F ...))
         (where [M_s ...] (override M_i ... m ... m_f ...))
-        (where (s_p ...) (remove-named m_i ... s ...))
+        (where (s_p ...) (remove-subst-named m_i ... s ...))
         (where [M_p ... F_p ...] (subst-inherits s_p ... M ... F ...))
         inherits)
    ;; Substitute for unqualified requests to the parameters, and return the body

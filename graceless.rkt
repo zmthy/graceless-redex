@@ -50,8 +50,9 @@
 ;; references to self with ℓ and unqualified requests to each x with the
 ;; corresponding v.
 (define-metafunction G
-  subst-request : ℓ [x v] ... e -> e
-  [(subst-request ℓ [x v] ... e) (subst [x v] ... (subst-self ℓ e))])
+  subst-request : ℓ m ... [x v] ... e -> e
+  [(subst-request ℓ m ... [x v] ... e)
+   (subst-rec ℓ m ... (subst [x v] ... (subst-self ℓ e)))])
 
 ;; Substitute any local request for each x with the corresponding v.
 (define-metafunction G
@@ -249,18 +250,18 @@
          σ]
         [(in-hole E (subst-object ℓ m ... m_f ...
                                   (field-assigns ℓ F ... (ref ℓ))))
-         (store σ [(subst-rec-method ℓ m ... m_f ... M_p) ...])]
+         (store σ [M ... M_f ...])]
         (where ℓ (fresh-location σ))
         (where (m_f ...) (fields-names F ...))
         (where (M_f ...) (fields-methods F ...))
-        (where (M_p ...) (M ... M_f ...))
         (side-condition (term (unique m ... m_f ...)))
         object)
    ;; Substitute for unqualified requests to the parameters, and return the body
    ;; of the method.
    (--> [(in-hole E (request (ref ℓ) m v ..._a)) σ]
-        [(in-hole E (subst-request ℓ [x v] ... e)) σ]
-        (where [_ ... (method m (x ..._a) e) _ ...] (lookup σ ℓ))
+        [(in-hole E (subst-request ℓ m_o ... [x v] ... e)) σ]
+        (where [(name M (method m_o _ _)) ...] (lookup σ ℓ))
+        (where [_ ... (method m (x ..._a) e) _ ...] [M ...])
         (side-condition (term (unique x ...)))
         request)
    ;; Set the field in the object and return the following expression.
