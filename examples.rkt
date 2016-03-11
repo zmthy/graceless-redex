@@ -177,3 +177,5 @@
 
 (test-->>G scoped-field
            (term [m x]))
+
+(test-results)

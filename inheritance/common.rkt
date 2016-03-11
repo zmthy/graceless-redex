@@ -24,11 +24,34 @@
 
 ;; The Graceless runtime extended with inheritance core and runtime syntax.
 (define-extended-language GI GIU
+  (e ....
+     (ref ℓ as e))
   (I (s ... inherits e))
+  (v ....
+     (ref ℓ as v))
   (E⊥ ....
       (object (s ... inherits E) M ... F ...))
+  ;; The complex contexts and the simple hole are separated here to prevent hole
+  ;; from appearing directly in an inherits clause of EF.
+  (EF⊥ (request EF m e ...)
+       (request v m v ... EF e ...)
+       (request m v ... EF e ...)
+       (assign v x EF e)
+       (object (s ... inherits EF⊥) M ... F ...))
+  (EF EF⊥
+      hole)
+  ;; This context is used for anything which is directly in an inherits clause.
+  (EI (request EI m e ...)
+      (request v m v ... EI e ...)
+      (request m v ... EI e ...)
+      (assign v x EI e)
+      (object (s ... inherits hole) M ... F ...))
   (s ....
      [ℓ super]))
+
+;; The languages without the freshness restriction just redefine EF to be E.
+(define-extended-language GO GI
+  (EF E))
 
 ;; Apply remove-shadows for the names m to each substitution s.
 (define-metafunction GI
@@ -97,9 +120,13 @@
   [(subst s ... [ℓ self] _ ... self) (ref ℓ)
    (side-condition (term (not-in-subst self s ...)))]
   ;; Substitute out super for the given reference, so long as there is no
-  ;; earlier substitution in the list.
-  [(subst s ... [ℓ super] _ ... super) (ref ℓ)
-   (side-condition (term (not-in-subst super s ...)))]
+  ;; earlier substitution in the list, then continue the substitutions into the
+  ;; resulting alias expression.
+  [(subst s_l ... [ℓ super] s_r ... super)
+   (ref ℓ as (subst s_l ... s_r ... self))
+   (side-condition (term (not-in-subst super s_l ...)))]
+  ;; Continue substitutions into alias expressions.
+  [(subst s ... (ref ℓ as e)) (ref ℓ as (subst s ... e))]
   ;; All other syntax is a terminal, so just return that.
   [(subst _ ... e) e])
 
@@ -196,8 +223,23 @@
   [(override M M_i ... m ...) [M M_p ...]
    (where [M_p ...] (override M_i ... m ...))])
 
-;; Partial small-step dynamic semantics of Graceless extended with inheritance.
-(define -->GI
+;; Replace the body of the method M with a request to method m in the object at
+;; location ℓ with the same arguments.
+(define-metafunction GI
+  forward-request-to : ℓ M -> M
+  [(forward-request-to ℓ (method m (x ...) _))
+   (method m (x ...) (request (ref ℓ as self) m (request x) ...))])
+
+;; Convert either form of reference to an aliased one.  If the original
+;; reference is not an alias, it aliases itself.
+(define-metafunction GI
+  as-alias : e -> e
+  [(as-alias (ref ℓ)) (ref ℓ as (ref ℓ))]
+  [(as-alias e) e])
+
+;; Partial small-step dynamic semantics of Graceless inheritance.  Must be
+;; extended with rules for inherits clauses object literals.
+(define -->GP
   (reduction-relation
    GI
    #:domain p
@@ -205,6 +247,33 @@
    (--> [(in-hole E⊥ uninitialised) σ]
         [uninitialised σ]
         uninitialised)
+   ;; Substitute for unqualified requests to the parameters, and return the body
+   ;; of the method.
+   (--> [(in-hole EF (request v_r m v ..._a)) σ]
+        ;; It's important that the local references come first in the
+        ;; substitution, as the parameters shadow local methods in the body.
+        [(in-hole EF (subst [v x] ... [ℓ_a self] [ℓ_a m_o ...] e)) σ]
+        ;; Get the lookup and binding references from the receiver.
+        (where (ref ℓ as (ref ℓ_a)) (as-alias v_r))
+        ;; Collect all the names of the methods in the receiver.
+        (where [(name M (method m_o _ _)) ...] (lookup σ ℓ))
+        ;; And fetch the one method with the name given in the request.
+        (where [_ ... (method m (x ..._a) e) _ ...] [M ...])
+        ;; A method's parameters must be unique.
+        (side-condition (term (unique x ...)))
+        request)
+   ;; Set the field in the object and return the following expression.
+   (--> [(in-hole E (assign (ref ℓ) x v e)) σ]
+        [(in-hole E e) (set-field σ ℓ x v)]
+        assign)))
+
+;; Partial small-step dynamic semantics of Graceless inheritance, extended with
+;; simple object inheritance.  Must be extended with rules for object literals.
+(define -->GO
+  (extend-reduction-relation
+   -->GP
+   GO
+   #:domain p
    ;; Inherits concatenates the methods in the super object into the object
    ;; constructor and returns the resulting concatenation.  The actual object
    ;; reference will be built in the next step.
@@ -228,21 +297,72 @@
         ;; names in the inherits clause from the delayed substitutions, as the
         ;; resulting methods will appear in the object and shadow them.
         (where (s ...) (remove-all-shadows s_d ... m_i ...))
-        inherits)
-   ;; Substitute for unqualified requests to the parameters, and return the body
-   ;; of the method.
-   (--> [(in-hole E (request (ref ℓ) m v ..._a)) σ]
-        ;; It's important that the local references come first in the
-        ;; substitution, as the parameters shadow local methods in the body.
-        [(in-hole E (subst [v x] ... [ℓ self] [ℓ m_o ...] e)) σ]
-        ;; Collect all the names of the methods in the receiver.
-        (where [(name M (method m_o _ _)) ...] (lookup σ ℓ))
-        ;; And fetch the one method with the name given in the request.
-        (where [_ ... (method m (x ..._a) e) _ ...] [M ...])
-        ;; A method's parameters must be unique.
-        (side-condition (term (unique x ...)))
-        request)
-   ;; Set the field in the object and return the following expression.
-   (--> [(in-hole E (assign (ref ℓ) x v e)) σ]
-        [(in-hole E e) (set-field σ ℓ x v)]
-        assign)))
+        inherits)))
+
+;; Partial small-step dynamic semantics of Graceless inheritance, extended with
+;; simple method forwarding.  Must be extended with rules for object literals.
+(define -->GR
+  (extend-reduction-relation
+   -->GP
+   GO
+   #:domain p
+   ;; Inherits concatenates the methods in the super object into the object
+   ;; constructor and returns the resulting concatenation.  The actual object
+   ;; reference will be built in the next step.
+   (--> [(in-hole E (object (s_d ... inherits (ref ℓ))
+                            (name M (method m _ _)) ... F ...)) σ]
+        ;; The resulting object includes the super methods, the substituted
+        ;; methods, and substituted fields.
+        [(in-hole E (object M_s ...
+                            (subst-method [ℓ super] s ... M) ...
+                            (subst-field [ℓ super] s ... F) ...)) σ]
+        ;; Lookup the super object, fetching both its methods and method names.
+        (where [(name M_i (method m_i _ _)) ...] (lookup σ ℓ))
+        ;; Collect the names of the fields in the inheriting object.
+        (where (m_f ...) (field-names F ...))
+        ;; Remove from the inherited methods any method which is overridden by a
+        ;; definition in the inheriting object, and then forward to the super
+        ;; object as self.
+        (where [M_s ...] ,(map (λ (M) (term (forward-request-to ℓ ,M)))
+                               (term (override M_i ... m ... m_f ...))))
+        ;; Definitions introduced by the inherits clause don't have a reference
+        ;; to substitute in yet: that will be produced by the following
+        ;; reduction step on the inheriting object.  So, we need to remove the
+        ;; names in the inherits clause from the delayed substitutions, as the
+        ;; resulting methods will appear in the object and shadow them.
+        (where (s ...) (remove-all-shadows s_d ... m_i ...))
+        inherits)))
+
+;; Partial small-step dynamic semantics of Graceless inheritance, extended with
+;; fresh object construction.  Must be extended with rules for inherits clauses
+;; with object literals.
+(define -->GI
+  (extend-reduction-relation
+   -->GP
+   GI
+   #:domain p
+   ;; A request directly in an inherits clause is only allowed to proceed if it
+   ;; results in a fresh object.
+   (--> [(in-hole EI (name e (request v m v_a ...))) σ]
+        [(in-hole EI o) σ_p]
+        (where [o σ_p] ,(apply-reduction-relation -->GP (term [e σ]))))
+   ;; Allocate the object o, converting fields into assignments with local
+   ;; requests substituted to the new object, and ultimately return the
+   ;; resulting reference.  Note that this in the hole EF, which ensures that it
+   ;; is not executed if it appears directly in an inherits clause.
+   (--> [(in-hole EF (name o (object M ... F ...))) σ]
+        ;; This substitution is into the body of the object.  The use of self
+        ;; and local requests in the method bodies will be handled when they are
+        ;; requested.
+        [(in-hole EF (subst [ℓ self] [ℓ m ...] (field-assigns ℓ F ... (ref ℓ))))
+         (store σ [M ... M_f ...])]
+        ;; Fetch a fresh location.
+        (where ℓ (fresh-location σ))
+        ;; The method names are used for substituting local requests, as well as
+        ;; ensuring the resulting object has unique method names.
+        (where (m ...) (object-names o))
+        ;; The generated getter and setter methods are included in the store.
+        (where (M_f ...) (field-methods F ...))
+        ;; An object's method names must be unique.
+        (side-condition (term (unique m ...)))
+        object)))

@@ -12,8 +12,8 @@
 ;; inheritance.
 (define -->GF
   (extend-reduction-relation
-   -->GI
-   GI
+   -->GR
+   GO
    #:domain p
    ;; Allocate the object o, converting fields into assignments with local
    ;; requests substituted to the new object, and ultimately return the
@@ -26,7 +26,7 @@
          ;; Under forwarding, all references to self and local requests are
          ;; substituted in methods that are placed in the store.
          (store σ [(subst-method [ℓ self] [ℓ m ...] M) ...
-                   (subst-method [ℓ self] [ℓ m ...] M_f) ...])]
+                   (subst-method [ℓ self] M_f) ...])]
         ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))
         ;; The method names are used for substituting local requests, as well as
@@ -42,13 +42,13 @@
 (define (step-->GF p) (apply-reduction-relation -->GF p))
 
 ;; Evaluate an expression starting with an empty store.
-(define-metafunction GI
+(define-metafunction GO
   eval : e -> e
   [(eval e) ,(car (term (run [e ()])))])
 
 ;; Apply the reduction relation -->GF until the result is a value or the program
 ;; gets stuck or has an error.
-(define-metafunction GI
+(define-metafunction GO
   run : p -> [e σ]
   [(run [uninitialised σ]) [uninitialised σ]]
   [(run [(ref ℓ) σ]) [(object M ...) σ]

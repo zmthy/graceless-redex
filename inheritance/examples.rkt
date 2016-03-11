@@ -3,17 +3,26 @@
 (require redex
          "forwarding.rkt"
          "concatenation.rkt"
-         "delegation.rkt")
+         "delegation.rkt"
+         "merged.rkt")
 
 (provide (all-defined-out)
          (all-from-out "forwarding.rkt")
          (all-from-out "concatenation.rkt")
-         (all-from-out "delegation.rkt"))
+         (all-from-out "delegation.rkt")
+         (all-from-out "merged.rkt"))
 
 ;; Test if expressions can cause a Racket error.
 (redex-check Graceless-Inheritance e (eval-->GF (term e)))
 (redex-check Graceless-Inheritance e (eval-->GC (term e)))
 (redex-check Graceless-Inheritance e (eval-->GD (term e)))
+(redex-check Graceless-Inheritance e (eval-->GM (term e)))
+
+(define-metafunction GI
+  not-result : e -> boolean
+  [(not-result uninitialised) #f]
+  [(not-result v) #f]
+  [(not-result _) #t])
 
 (define-metafunction GI
   names : [M ...] -> [m ...]
@@ -30,6 +39,8 @@
 
 (define-metafunction GI
   result-equiv : any any -> boolean
+  [(result-equiv [e _] stuck) (not-result e)]
+  [(result-equiv stuck [e _]) (not-result e)]
   [(result-equiv [(ref ℓ) σ] [m ...])
    ,(equal? (sort (term [m ...]) name<?) (sort (term [m_o ...]) name<?))
    (where [m_o ...] (names (lookup σ ℓ)))]
@@ -56,10 +67,14 @@
 (define (test-->>GD t r)
   (test-->>G -->GD t r))
 
+(define (test-->>GM t r)
+  (test-->>G -->GM t r))
+
 (define (test-->>GI t r)
   (test-->>GF t r)
   (test-->>GC t r)
-  (test-->>GD t r))
+  (test-->>GD t r)
+  (test-->>GM t r))
 
 (define empty-inherits
   (term (object
@@ -171,7 +186,7 @@
 (test-->>GD down-call
             (term [m x]))
 
-(define field-mutation
+(define super-field-mutation-mutates-super
   (term (request
          (object
           (def a =
@@ -184,25 +199,17 @@
           (def c = (request (request a) x)))
          c)))
 
-(test-->>GF field-mutation
+(test-->>GF super-field-mutation-mutates-super
             (term [x (x :=) y]))
 
-(test-->>GC field-mutation
+(test-->>GC super-field-mutation-mutates-super
             (term done))
 
-(test-->>GD field-mutation
+(test-->>GD super-field-mutation-mutates-super
             (term [x (x :=) y]))
 
-(define super-ref
-  (term (request
-         (object
-          (inherits
-           (object))
-          (def x = super))
-         x)))
-
-(test-->>GI super-ref
-            (term []))
+(test-->>GM super-field-mutation-mutates-super
+            (term stuck))
 
 (define super-request
   (term (request
@@ -214,8 +221,17 @@
           (def x = (request super m)))
          x)))
 
-(test-->>GI super-request
+(test-->>GF super-request
             (term [m]))
+
+(test-->>GC super-request
+            (term [m x]))
+
+(test-->>GD super-request
+            (term [m x]))
+
+(test-->>GM super-request
+            (term [m x]))
 
 (define shadowed-delayed-direct
   (term (object
@@ -240,3 +256,57 @@
 
 (test-->>GI shadowed-delayed-indirect
             (term [x]))
+
+(define field-mutation
+  (term (request
+         (object
+          (inherits (object
+                     (var x)))
+          (def y = (request (x :=) done)))
+         x)))
+
+(test-->>GI field-mutation
+            (term done))
+
+(define super-field-mutation
+  (term (request
+         (object
+          (inherits (object
+                     (var x)))
+          (def y = (request super (x :=) done)))
+         x)))
+
+(test-->>GI super-field-mutation
+            (term done))
+
+(define super-field-mutation-override
+  (term (request
+         (object
+          (inherits (object
+                     (var x)))
+          (def x = done)
+          (def y = (request super (x :=) self)))
+         x)))
+
+(test-->>GI super-field-mutation-override
+            (term done))
+
+(define not-fresh
+  (term (object
+         (def x = (object))
+         (def y = (object
+                   (inherits (request x)))))))
+
+(test-->>GF not-fresh
+            (term [x y]))
+
+(test-->>GC not-fresh
+            (term [x y]))
+
+(test-->>GD not-fresh
+            (term [x y]))
+
+(test-->>GM not-fresh
+            (term stuck))
+
+(test-results)

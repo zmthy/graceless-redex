@@ -12,8 +12,8 @@
 ;; inheritance.
 (define -->GC
   (extend-reduction-relation
-   -->GI
-   GI
+   -->GO
+   GO
    #:domain p
    ;; Allocate the object o, converting fields into assignments with local
    ;; requests substituted to the new object, and ultimately return the
@@ -42,13 +42,13 @@
 (define (step-->GC p) (apply-reduction-relation -->GC p))
 
 ;; Evaluate an expression starting with an empty store.
-(define-metafunction GI
+(define-metafunction GO
   eval : e -> e
   [(eval e) ,(car (term (run [e ()])))])
 
 ;; Apply the reduction relation -->GC until the result is a value or the program
 ;; gets stuck or has an error.
-(define-metafunction GI
+(define-metafunction GO
   run : p -> [e σ]
   [(run [uninitialised σ]) [uninitialised σ]]
   [(run [(ref ℓ) σ]) [(object M ...) σ]
