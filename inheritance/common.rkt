@@ -230,6 +230,14 @@
   [(forward-request-to ℓ (method m (x ...) _))
    (method m (x ...) (request (ref ℓ as self) m (request x) ...))])
 
+;; Substitute a self reference as the receiver of an assignment to a field with
+;; a reference to the location l in the method M.
+(define-metafunction GI
+  subst-self-assign : ℓ M -> M
+  [(subst-self-assign ℓ (method m (x_p) (assign self x_f e done)))
+   (method m (x_p) (assign (ref ℓ) x_f e done))]
+  [(subst-self-assign _ M) M])
+
 ;; Convert either form of reference to an aliased one.  If the original
 ;; reference is not an alias, it aliases itself.
 (define-metafunction GI
@@ -350,19 +358,22 @@
    ;; requests substituted to the new object, and ultimately return the
    ;; resulting reference.  Note that this in the hole EF, which ensures that it
    ;; is not executed if it appears directly in an inherits clause.
-   (--> [(in-hole EF (name o (object M ... F ...))) σ]
+   (--> [(in-hole EF (name o (object (name M (method m _ _)) ... F ...))) σ]
         ;; This substitution is into the body of the object.  The use of self
         ;; and local requests in the method bodies will be handled when they are
         ;; requested.
-        [(in-hole EF (subst [ℓ self] [ℓ m ...] (field-assigns ℓ F ... (ref ℓ))))
+        [(in-hole EF (subst [ℓ self] [ℓ m ... m_f ...]
+                            (field-assigns ℓ F ... (ref ℓ))))
          (store σ [M ... M_f ...])]
         ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))
-        ;; The method names are used for substituting local requests, as well as
-        ;; ensuring the resulting object has unique method names.
-        (where (m ...) (object-names o))
         ;; The generated getter and setter methods are included in the store.
-        (where (M_f ...) (field-methods F ...))
+        ;; We permit duplicates here to allow inherited fields to be copied into
+        ;; object bodies for initialisation.
+        (where ((name M_i (method m_f _ _)) ...)
+               ,(remove-duplicates (term (field-methods F ...))))
+        ;; Remove the fields which are duplicated by method names.
+        (where (M_f ...) (override M_i ... m ...))
         ;; An object's method names must be unique.
         (side-condition (term (unique m ...)))
         object)))

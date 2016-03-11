@@ -13,14 +13,6 @@
   set-methods : σ ℓ [M ...] -> σ
   [(set-methods σ ℓ [M ...]) ,(list-set (term σ) (term ℓ) (term [M ...]))])
 
-;; Substitute a self reference as the receiver of an assignment to a field with
-;; a reference to the location l in the method M.
-(define-metafunction GI
-  subst-self-assign : ℓ M -> M
-  [(subst-self-assign ℓ (method m (x_p) (assign self x_f e done)))
-   (method m (x_p) (assign (ref ℓ) x_f e done))]
-  [(subst-self-assign _ M) M])
-
 ;; Small-step dynamic semantics of Graceless extended with merged identity
 ;; inheritance.
 (define -->GM
@@ -35,12 +27,11 @@
         (where ([e σ_p]) ,(apply-reduction-relation -->GM (term [o σ]))))
    ;; Concatenate the new definitions into the inherited object's store
    ;; location (removing overrides), and return the inheriting object's body.
-   (--> [(in-hole E (object (s_d ... inherits (ref ℓ))
-                            (name M (method m _ _)) ... F ...)) σ]
+   (--> [(in-hole E (name o (object (s_d ... inherits (ref ℓ)) M ... F ...))) σ]
         ;; The super reference is now the self reference.  Substitutions are the
         ;; inherited and local methods for self/super, and the (shadowed)
         ;; delayed substitutions on the inherits clause.
-        [(in-hole E (subst [ℓ_s super] [ℓ self] [ℓ m_i ... m ... m_f ...] s ...
+        [(in-hole E (subst [ℓ_s super] [ℓ self] [ℓ m_i ... m ...] s ...
                            (field-assigns ℓ F ... (ref ℓ))))
          ;; Add the new methods into the old location in the store.
          (set-methods σ_s ℓ ,(append (term [M_s ...])
@@ -54,25 +45,21 @@
         ;; Store the new super object in the store.  Assignments should remain
         ;; bound to the new object in self calls.
         (where σ_s (store σ [(subst-self-assign ℓ_s M_i) ...]))
-        ;; Collect the names of the fields in the inheriting object.
-        (where (m_f ...) (field-names F ...))
+        ;; Collect the names of the methods in the inheriting object.
+        (where (m ...) (object-names o))
         ;; Remove from the inherited methods any method which is overridden by a
         ;; definition in the inheriting object, and then forward to the super
         ;; object as self.
         (where [M_s ...] ,(map (λ (M) (term (forward-request-to ℓ_s ,M)))
-                               (term (override M_i ... m ... m_f ...))))
+                               (term (override M_i ... m ...))))
         ;; Because we are merging with the existing object, we need to apply
         ;; these substitutions directly to the methods which will be added into
         ;; the store.  So, we need to remove the names in the object from the
         ;; delayed substitutions, as the resulting methods will appear in the
         ;; object and shadow them.
-        (where (s ...) (remove-all-shadows s_d ... m ... m_f ...))
-        ;; Apply the substitutions to the inheriting object's methods.  It's not
-        ;; necessary to apply it to the fields, because their values will not be
-        ;; in the generated methods but in the assigns of the object body.
-        (where [M_p ...] [(subst-method s ... M) ...])
+        (where (s ...) (remove-all-shadows s_d ... m ...))
         ;; The methods of the inheriting object must be unique.
-        (side-condition (term (unique m ... m_f ...)))
+        (side-condition (term (unique m ...)))
         inherits)))
 
 ;; Progress the program p by one step with the reduction relation -->GM.

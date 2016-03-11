@@ -4,19 +4,22 @@
          "forwarding.rkt"
          "concatenation.rkt"
          "delegation.rkt"
-         "merged.rkt")
+         "merged.rkt"
+         "uniform.rkt")
 
 (provide (all-defined-out)
          (all-from-out "forwarding.rkt")
          (all-from-out "concatenation.rkt")
          (all-from-out "delegation.rkt")
-         (all-from-out "merged.rkt"))
+         (all-from-out "merged.rkt")
+         (all-from-out "uniform.rkt"))
 
 ;; Test if expressions can cause a Racket error.
 (redex-check Graceless-Inheritance e (eval-->GF (term e)))
 (redex-check Graceless-Inheritance e (eval-->GC (term e)))
 (redex-check Graceless-Inheritance e (eval-->GD (term e)))
 (redex-check Graceless-Inheritance e (eval-->GM (term e)))
+(redex-check Graceless-Inheritance e (eval-->GU (term e)))
 
 (define-metafunction GI
   not-result : e -> boolean
@@ -67,20 +70,30 @@
 (define (test-->>GD t r)
   (test-->>G -->GD t r))
 
+(define (test-->>GO t r)
+  (test-->>GF t r)
+  (test-->>GC t r)
+  (test-->>GD t r))
+
 (define (test-->>GM t r)
   (test-->>G -->GM t r))
 
+(define (test-->>GU t r)
+  (test-->>G -->GU t r))
+
 (define (test-->>GI t r)
-  (test-->>GF t r)
-  (test-->>GC t r)
-  (test-->>GD t r)
-  (test-->>GM t r))
+  (test-->>GM t r)
+  (test-->>GU t r))
+
+(define (test-->>GA t r)
+  (test-->>GO t r)
+  (test-->>GI t r))
 
 (define empty-inherits
   (term (object
          (inherits (object)))))
 
-(test-->>GI empty-inherits
+(test-->>GA empty-inherits
             (term []))
 
 (define simple-inherits
@@ -89,7 +102,7 @@
                     (method a () self)))
          (method b () self))))
 
-(test-->>GI simple-inherits
+(test-->>GA simple-inherits
             (term [a b]))
 
 (define simple-override
@@ -98,7 +111,7 @@
                     (method m () self)))
          (method m () self))))
 
-(test-->>GI simple-override
+(test-->>GA simple-override
             (term [m]))
 
 (define field-override
@@ -107,7 +120,7 @@
                     (var x)))
          (method x () self))))
 
-(test-->>GI field-override
+(test-->>GA field-override
             (term [x (x :=)]))
 
 (define field-scoped
@@ -118,7 +131,7 @@
             (inherits (object))
             (def z = (request x)))))))
 
-(test-->>GI field-scoped
+(test-->>GA field-scoped
             (term [x y]))
 
 (define method-scoped
@@ -129,7 +142,7 @@
             (inherits (object))
             (def x = (request m)))))))
 
-(test-->>GI method-scoped
+(test-->>GA method-scoped
             (term [m x]))
 
 (define shadowed-by-super-field
@@ -146,7 +159,7 @@
              z)))
          y)))
 
-(test-->>GI shadowed-by-super-field
+(test-->>GA shadowed-by-super-field
             (term done))
 
 (define shadowed-by-super-method
@@ -163,7 +176,7 @@
              y)))
          x)))
 
-(test-->>GI shadowed-by-super-method
+(test-->>GA shadowed-by-super-method
             (term done))
 
 (define down-call
@@ -242,7 +255,7 @@
             (def x = done)
             (def y = (request x)))))))
 
-(test-->>GI shadowed-delayed-direct
+(test-->>GA shadowed-delayed-direct
             (term [x]))
 
 (define shadowed-delayed-indirect
@@ -254,7 +267,7 @@
               (def x = done)))
             (def y = (request x)))))))
 
-(test-->>GI shadowed-delayed-indirect
+(test-->>GA shadowed-delayed-indirect
             (term [x]))
 
 (define field-mutation
@@ -265,7 +278,7 @@
           (def y = (request (x :=) done)))
          x)))
 
-(test-->>GI field-mutation
+(test-->>GA field-mutation
             (term done))
 
 (define super-field-mutation
@@ -276,7 +289,7 @@
           (def y = (request super (x :=) done)))
          x)))
 
-(test-->>GI super-field-mutation
+(test-->>GA super-field-mutation
             (term done))
 
 (define super-field-mutation-override
@@ -288,7 +301,19 @@
           (def y = (request super (x :=) self)))
          x)))
 
-(test-->>GI super-field-mutation-override
+(test-->>GF super-field-mutation-override
+            (term done))
+
+(test-->>GC super-field-mutation-override
+            (term [x (x :=) y]))
+
+(test-->>GD super-field-mutation-override
+            (term done))
+
+(test-->>GM super-field-mutation-override
+            (term done))
+
+(test-->>GU super-field-mutation-override
             (term done))
 
 (define not-fresh
@@ -297,16 +322,20 @@
          (def y = (object
                    (inherits (request x)))))))
 
-(test-->>GF not-fresh
+(test-->>GO not-fresh
             (term [x y]))
 
-(test-->>GC not-fresh
-            (term [x y]))
-
-(test-->>GD not-fresh
-            (term [x y]))
-
-(test-->>GM not-fresh
+(test-->>GI not-fresh
             (term stuck))
+
+(define override-field
+  (term (object
+         (inherits
+          (object
+           (def x = done)))
+         (method x (x) (request x)))))
+
+(test-->>GA override-field
+            (term [x]))
 
 (test-results)
