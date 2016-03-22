@@ -10,8 +10,8 @@
 (redex-check Graceless e (eval-->G (term e)))
 
 (define-metafunction G
-  names : [M ...] -> [m ...]
-  [(names [(method m _ ...) ...]) (m ...)])
+  names : O -> (m ...)
+  [(names (object F ... (method m _ _) ...)) (m ...)])
 
 (define-metafunction G
   name< : m m -> boolean
@@ -24,14 +24,14 @@
 
 (define-metafunction G
   result-equiv : any any -> boolean
-  [(result-equiv [(ref ℓ) σ] (m ...))
+  [(result-equiv [σ (ref ℓ)] (m ...))
    ,(equal? (sort (term [m ...]) name<?) (sort (term [m_o ...]) name<?))
    (where [m_o ...] (names (lookup σ ℓ)))]
-  [(result-equiv (m ...) [(ref ℓ) σ])
+  [(result-equiv (m ...) [σ (ref ℓ)])
    ,(equal? (sort (term [m ...]) name<?) (sort (term [m_o ...]) name<?))
    (where [m_o ...] (names (lookup σ ℓ)))]
-  [(result-equiv [e σ] e) #t]
-  [(result-equiv e [e σ]) #t]
+  [(result-equiv [σ e] e) #t]
+  [(result-equiv e [σ e]) #t]
   [(result-equiv _ _) #f])
 
 (define (test-->>G t r)
@@ -56,75 +56,62 @@
            (term [m]))
 
 (define simple-request
-  (term (request
-          (object
-           (method m (x)
-                   (request x)))
-          m
-          (object))))
+  (term ((object
+          (method m (x) (x)))
+         m
+         (object))))
 
 (test-->>G simple-request
            (term []))
 
 (define scoped
-  (term (request
-          (object
-           (method m (x)
-                   (object
-                    (method m (x)
-                            (request x)))))
-          m
-          (object))))
+  (term ((object
+          (method m (x)
+                  (object
+                   (method m (x) (x)))))
+         m
+         (object))))
 
 (test-->>G scoped
            (term [m]))
 
 (define multiple-args
-  (term (request
-          (object
-           (method const
-                   (x y)
-                   (request y)))
-          const
-          (object)
-          (object))))
+  (term ((object
+          (method const (x y) (y)))
+         const
+         (object)
+         (object))))
 
 (test-->>G multiple-args
            (term []))
 
 (define local-request
-  (term (request
-          (object
-           (method first ()
-                   (request second))
-           (method second ()
-                   self))
-          first)))
+  (term ((object
+          (method first () (second))
+          (method second () self))
+         first)))
 
 (test-->>G local-request
            (term [first second]))
 
 (define simple-field
   (term (object
-          (def x = self))))
+         (def x = self))))
 
 (test-->>G simple-field
            (term [x]))
 
 (define method-and-field
   (term (object
-          (method m ()
-                  self)
-          (def x = self))))
+         (method m () self)
+         (def x = self))))
 
 (test-->>G simple-field
            (term [x]))
 
 (define uninit-request
   (term (object
-          (method val ()
-                  (request x))
-          (def x = (request val)))))
+         (def x = (x)))))
 
 (test-->>G uninit-request
            (term uninitialised))
@@ -139,14 +126,13 @@
 (define local-field-assign
   (term (object
          (var x)
-         (def y = (request (x :=) self)))))
+         (def y = ((x :=) self)))))
 
 (test-->>G local-field-assign
            (term [x (x :=) y]))
 
 (define field-assign
-  (term (request
-         (object
+  (term ((object
           (var x))
          (x :=)
          (object))))
@@ -155,9 +141,8 @@
            (term done))
 
 (define done-argument
-  (term (request
-         (object
-          (method m (x) (request x)))
+  (term ((object
+          (method m (x) (x)))
          m
          done)))
 
@@ -165,14 +150,11 @@
            (term done))
 
 (define scoped-field
-  (term (request
-         (object
+  (term ((object
           (method m () self)
-          (def x =
-            (request
-             (object
-              (def y = (request m)))
-             y)))
+          (def x = ((object
+                     (def y = (m)))
+                    y)))
          x)))
 
 (test-->>G scoped-field
