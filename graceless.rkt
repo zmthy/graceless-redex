@@ -111,20 +111,27 @@
 ;; substitution for self is incremented, as the object it refers to will be
 ;; further away inside the inner object.
 (define-metafunction G
-  object-shadows : s o -> (s ...)
+  object-shadows : s (M ... S ...) -> (s ...)
   ;; Substitutions of self are incremented.
-  [(object-shadows [ℓ any] _) ([ℓ (inc-self any)])]
+  [(object-shadows [ℓ e] _) ([ℓ (inc-self e)])]
   ;; Otherwise collect the method names of the object, remove-shadows, and
   ;; increment if the substitution is to self.
-  [(object-shadows [e m_s ...] (object M ... S ...))
+  [(object-shadows [e m_s ...] (M ... S ...))
    (remove-shadows [(inc-self e) m_s ...] m_o ...)
    (where (m_o ...) (names M ... S ...))])
+
+;; Apply remove-object-shadows for the object o to each substitution s.
+(define-metafunction G
+  all-object-shadows : s ... (M ... S ...) -> (s ...)
+  [(all-object-shadows s ... (M ... S ...))
+   ,(append-map (λ (s) (term (object-shadows ,s (M ... S ...))))
+                (term (s ...)))])
 
 ;; Determine whether the given thing appears in the substitutions s.
 (define-metafunction G
   not-in-subst : any s ... -> boolean
   ;; This matching syntax captures any name in any kind of substitution.
-  [(not-in-subst any _ ... [_ _ ... any _ ...] _ ...) #f]
+  [(not-in-subst any _ ... [_ m ... any m ...] _ ...) #f]
   ;; In any other case, it is not in the list.
   [(not-in-subst _ _ ...) #t])
 
@@ -135,8 +142,7 @@
   ;; shadowed by the object.
   [(subst s ... (name o (object M ... S ...)))
    (object (subst-method s_p ... M) ... (subst-stmt s_p ... S) ...)
-   (where (s_p ...) ,(append-map (λ (s) (term (object-shadows ,s o)))
-                                 (term (s ...))))]
+   (where (s_p ...) (all-object-shadows s ... (M ... S ...)))]
   ;; Continue the substitution into a request.
   [(subst s ... (e m e_a ...))
    ((subst s ... e) m (subst s ... e_a) ...)]

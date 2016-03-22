@@ -28,8 +28,8 @@
   [(not-result _) #t])
 
 (define-metafunction GI
-  names : [M ...] -> [m ...]
-  [(names [(method m _ ...) ...]) [m ...]])
+  names : O -> (m ...)
+  [(names (object F ... (method m _ ...) ...)) (m ...)])
 
 (define-metafunction GI
   name< : m m -> boolean
@@ -42,16 +42,16 @@
 
 (define-metafunction GI
   result-equiv : any any -> boolean
-  [(result-equiv [e _] stuck) (not-result e)]
-  [(result-equiv stuck [e _]) (not-result e)]
-  [(result-equiv [(ref ℓ) σ] [m ...])
+  [(result-equiv [_ e] stuck) (not-result e)]
+  [(result-equiv stuck [_ e]) (not-result e)]
+  [(result-equiv [σ (ref ℓ)] (m ...))
    ,(equal? (sort (term [m ...]) name<?) (sort (term [m_o ...]) name<?))
    (where [m_o ...] (names (lookup σ ℓ)))]
-  [(result-equiv [m ...] [(ref ℓ) σ])
+  [(result-equiv (m ...) [σ (ref ℓ)])
    ,(equal? (sort (term [m ...]) name<?) (sort (term [m_o ...]) name<?))
    (where [m_o ...] (names (lookup σ ℓ)))]
-  [(result-equiv [e σ] e) #t]
-  [(result-equiv e [e σ]) #t]
+  [(result-equiv [σ e] e) #t]
+  [(result-equiv e [σ e]) #t]
   [(result-equiv _ _) #f])
 
 (define (test-->>G a t r)
@@ -98,8 +98,9 @@
 
 (define simple-inherits
   (term (object
-         (inherits (object
-                    (method a () self)))
+         (inherits
+          (object
+           (method a () self)))
          (method b () self))))
 
 (test-->>GA simple-inherits
@@ -107,8 +108,9 @@
 
 (define simple-override
   (term (object
-         (inherits (object
-                    (method m () self)))
+         (inherits
+          (object
+           (method m () self)))
          (method m () self))))
 
 (test-->>GA simple-override
@@ -116,8 +118,9 @@
 
 (define field-override
   (term (object
-         (inherits (object
-                    (var x)))
+         (inherits
+          (object
+           (var x)))
          (method x () self))))
 
 (test-->>GA field-override
@@ -126,10 +129,9 @@
 (define field-scoped
   (term (object
          (def x = self)
-         (def y =
-           (object
-            (inherits (object))
-            (def z = (request x)))))))
+         (def y = (object
+                   (inherits (object))
+                   (def z = (x)))))))
 
 (test-->>GA field-scoped
             (term [x y]))
@@ -137,42 +139,36 @@
 (define method-scoped
   (term (object
          (method m () self)
-         (def x =
-           (object
-            (inherits (object))
-            (def x = (request m)))))))
+         (def x = (object
+                   (inherits (object))
+                   (def x = (m)))))))
 
 (test-->>GA method-scoped
             (term [m x]))
 
 (define shadowed-by-super-field
-  (term (request
-         (object
+  (term ((object
           (def x = self)
-          (def y =
-            (request
-             (object
-              (inherits
-               (object
-                (def x = done)))
-              (def z = (request x)))
-             z)))
+          (def y = ((object
+                     (inherits
+                      (object
+                       (def x = done)))
+                     (def z = (x)))
+                    z)))
          y)))
 
 (test-->>GA shadowed-by-super-field
             (term done))
 
 (define shadowed-by-super-method
-  (term (request
-         (object
+  (term ((object
           (method m () self)
           (def x =
-            (request
-             (object
+            ((object
               (inherits
                (object
                 (method m () done)))
-              (def y = (request m)))
+              (def y = (m)))
              y)))
          x)))
 
@@ -180,12 +176,10 @@
             (term done))
 
 (define down-call
-  (term (request
-         (object
+  (term ((object
           (inherits
            (object
-            (method m ()
-                    (request x))
+            (method m () (x))
             (def x = done)))
           (def x = self))
          m)))
@@ -200,16 +194,15 @@
             (term [m x]))
 
 (define super-field-mutation-mutates-super
-  (term (request
-         (object
+  (term ((object
           (def a =
             (object
              (var x := done)))
           (def b =
             (object
-             (inherits (request a))
-             (def y = (request (x :=) self))))
-          (def c = (request (request a) x)))
+             (inherits (a))
+             (def y = ((x :=) self))))
+          (def c = ((a) x)))
          c)))
 
 (test-->>GF super-field-mutation-mutates-super
@@ -225,13 +218,12 @@
             (term stuck))
 
 (define super-request
-  (term (request
-         (object
+  (term ((object
           (inherits
            (object
             (method m () self)))
           (method m () done)
-          (def x = (request super m)))
+          (def x = (super m)))
          x)))
 
 (test-->>GF super-request
@@ -253,7 +245,7 @@
             (inherits
              (object))
             (def x = done)
-            (def y = (request x)))))))
+            (def y = (x)))))))
 
 (test-->>GA shadowed-delayed-direct
             (term [x]))
@@ -265,62 +257,47 @@
             (inherits
              (object
               (def x = done)))
-            (def y = (request x)))))))
+            (def y = (x)))))))
 
 (test-->>GA shadowed-delayed-indirect
             (term [x]))
 
 (define field-mutation
-  (term (request
-         (object
+  (term ((object
           (inherits (object
                      (var x)))
-          (def y = (request (x :=) done)))
+          (def y = ((x :=) done)))
          x)))
 
 (test-->>GA field-mutation
             (term done))
 
 (define super-field-mutation
-  (term (request
-         (object
+  (term ((object
           (inherits (object
                      (var x)))
-          (def y = (request super (x :=) done)))
+          (def y = (super (x :=) done)))
          x)))
 
 (test-->>GA super-field-mutation
             (term done))
 
 (define super-field-mutation-override
-  (term (request
-         (object
+  (term ((object
           (inherits (object
                      (var x)))
           (def x = done)
-          (def y = (request super (x :=) self)))
+          (def y = (super (x :=) self)))
          x)))
 
-(test-->>GF super-field-mutation-override
-            (term done))
-
-(test-->>GC super-field-mutation-override
-            (term [x (x :=) y]))
-
-(test-->>GD super-field-mutation-override
-            (term done))
-
-(test-->>GM super-field-mutation-override
-            (term done))
-
-(test-->>GU super-field-mutation-override
+(test-->>GA super-field-mutation-override
             (term done))
 
 (define not-fresh
   (term (object
          (def x = (object))
          (def y = (object
-                   (inherits (request x)))))))
+                   (inherits (x)))))))
 
 (test-->>GO not-fresh
             (term [x y]))
@@ -333,7 +310,7 @@
          (inherits
           (object
            (def x = done)))
-         (method x (x) (request x)))))
+         (method x (x) (x)))))
 
 (test-->>GA override-field
             (term [x]))

@@ -12,31 +12,31 @@
 ;; inheritance.
 (define -->GC
   (extend-reduction-relation
-   -->GO
+   -->GPO
    GO
    #:domain p
-   ;; Allocate the object o, converting fields into assignments with local
-   ;; requests substituted to the new object, and ultimately return the
-   ;; resulting reference.
-   (--> [(in-hole E (name o (object M ... F ...))) σ]
-        ;; This substitution is into the body of the object.  The use of self
-        ;; and local requests in the method bodies will be handled when they are
-        ;; requested.
-        [(in-hole E (subst [ℓ self] [ℓ m ...] (field-assigns ℓ F ... (ref ℓ))))
-         ;; Under concatenation, no substitution occurs in the methods that are
-         ;; placed in the store.
-         (store σ [M ...
-                   M_f ...])]
-        ;; Fetch a fresh location.
-        (where ℓ (fresh-location σ))
-        ;; The method names are used for substituting local requests, as well as
-        ;; ensuring the resulting object has unique method names.
-        (where (m ...) (object-names o))
-        ;; The generated getter and setter methods are included in the store.
-        (where (M_f ...) (field-methods F ...))
-        ;; An object's method names must be unique.
-        (side-condition (term (unique m ...)))
-        object)))
+   ;; Inherits concatenates the methods in the super object into the object
+   ;; constructor and returns the resulting concatenation.  The actual object
+   ;; reference will be built in the next step.
+   (--> [σ (in-hole E (object (inherits (ref ℓ) s_d ...) M ... S ...))]
+        ;; The resulting object includes the super methods, the substituted
+        ;; methods, and substituted fields.
+        [σ (in-hole E (object M_up ...
+                              (subst-method s ...
+                                            [ℓ as (self 0) (super 0)] M) ...
+                              (self x <- v) ...
+                              (subst-stmt s ...
+                                          [ℓ as (self 0) (super 0)] S) ...))]
+        ;; Lookup the super object, fetching both its methods and method names.
+        (where (object [x v] ... M_u ...) (lookup σ ℓ))
+        ;; Collect the names of the definitions in the inheriting object.
+        (where (m ...) (names M ... S ...))
+        ;; Remove from the inherited methods any method which is overridden by a
+        ;; definition in the inheriting object.
+        (where (M_up ...) (override M_u ... m ...))
+        ;; Remove the shadowed substitutions before applying them to the body.
+        (where (s ...) (all-object-shadows s_d ... (M_up ...)))
+        inherits/concatenation)))
 
 ;; Progress the program p by one step with the reduction relation -->GC.
 (define (step-->GC p) (apply-reduction-relation -->GC p))
@@ -44,14 +44,14 @@
 ;; Evaluate an expression starting with an empty store.
 (define-metafunction GO
   eval : e -> e
-  [(eval e) ,(car (term (run [e ()])))])
+  [(eval e) ,(second (term (run [() e])))])
 
 ;; Apply the reduction relation -->GC until the result is a value or the program
 ;; gets stuck or has an error.
 (define-metafunction GO
-  run : p -> [e σ]
-  [(run [uninitialised σ]) [uninitialised σ]]
-  [(run [(ref ℓ) σ]) [(object M ...) σ]
+  run : p -> p
+  [(run [σ uninitialised]) [σ uninitialised]]
+  [(run [σ (ref ℓ)]) [σ (object M ...)]
    (where [M ...] (lookup σ ℓ))]
   [(run p) (run p_p)
    (where (p_p) ,(step-->GC (term p)))]
@@ -63,7 +63,7 @@
 
 ;; Run the term t as an initial program with the reduction relation -->GC,
 ;; returning the resulting object, stuck program, or error, and the store.
-(define (run-->GC t) (term (run [,t ()])))
+(define (run-->GC t) (term (run [() ,t])))
 
 ;; Run the traces function on the given term as an initial program with the
 ;; reduction relation -->GC.

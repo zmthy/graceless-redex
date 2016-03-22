@@ -8,74 +8,71 @@
                      run)
          (all-from-out "common.rkt"))
 
-;; Add the methods M to the object at location ℓ in the store σ.
-(define-metafunction GI
-  set-methods : σ ℓ [M ...] -> σ
-  [(set-methods σ ℓ [M ...]) ,(list-set (term σ) (term ℓ) (term [M ...]))])
-
 ;; Small-step dynamic semantics of Graceless extended with merged identity
 ;; inheritance.
 (define -->GM
   (extend-reduction-relation
-   -->GI
-   GI
+   -->GPF
+   GM
    #:domain p
-   ;; Object literals are permitted to transform into refs in inherits clauses
-   ;; under merged identity.
-   (--> [(in-hole EI o) σ]
-        [(in-hole EI e) σ_p]
-        (where ([e σ_p]) ,(apply-reduction-relation -->GM (term [o σ]))))
    ;; Concatenate the new definitions into the inherited object's store
    ;; location (removing overrides), and return the inheriting object's body.
-   (--> [(in-hole E (name o (object (s_d ... inherits (ref ℓ)) M ... F ...))) σ]
-        ;; The super reference is now the self reference.  Substitutions are the
-        ;; inherited and local methods for self/super, and the (shadowed)
-        ;; delayed substitutions on the inherits clause.
-        [(in-hole E (subst [ℓ_s super] [ℓ self] [ℓ m_i ... m ...] s ...
-                           (field-assigns ℓ F ... (ref ℓ))))
-         ;; Add the new methods into the old location in the store.
-         (set-methods σ_s ℓ ,(append (term [M_s ...])
-                                     (term [(subst-method s ... M) ...])
-                                     (term (field-methods F ...))))]
+   (--> [σ (in-hole E (object (inherits (ref ℓ) s_d ...) M ... S ...))]
+        ;; The resulting object includes the super methods, the substituted
+        ;; methods, and original fields.  The new super object contains just the
+        ;; methods that were in the object when it was inherited from, and not
+        ;; its fields.
+        [(store-at (store σ (object M_u ...))
+                   ℓ (object F ...
+                             M_up ...
+                             (subst-method s ...
+                                           [(self 0) m] ...
+                                           [ℓ_u as (self 0) (super 0)] M) ...
+                             M_f ...))
+         ;; We also have to process the actual object expression as well.
+         (in-hole E (seq (subst s ...
+                                [ℓ (self 0)]
+                                [(self 0) m] ...
+                                [ℓ_u as (self 0) (super 0)]
+                                e) ...
+                                (ref ℓ)))]
         ;; Lookup the super object, fetching both its methods and method names.
-        (where [(name M_i (method m_i _ _)) ...] (lookup σ ℓ))
-        ;; We have to allocate a copy of the inherited object, so it can be used
-        ;; as a super-reference.
-        (where ℓ_s (fresh-location σ))
-        ;; Store the new super object in the store.  Assignments should remain
-        ;; bound to the new object in self calls.
-        (where σ_s (store σ [(subst-self-assign ℓ_s M_i) ...]))
-        ;; Collect the names of the methods in the inheriting object.
-        (where (m ...) (object-names o))
+        (where (object F ... M_u ...) (lookup σ ℓ))
+        ;; Fetch a fresh location.
+        (where ℓ_u (fresh-location σ))
+        ;; Collect the names of the definitions in the inheriting object.
+        (where (m_d ...) (names M ... S ...))
         ;; Remove from the inherited methods any method which is overridden by a
-        ;; definition in the inheriting object, and then forward to the super
-        ;; object as self.
-        (where [M_s ...] ,(map (λ (M) (term (forward-request-to ℓ_s ,M)))
-                               (term (override M_i ... m ...))))
-        ;; Because we are merging with the existing object, we need to apply
-        ;; these substitutions directly to the methods which will be added into
-        ;; the store.  So, we need to remove the names in the object from the
-        ;; delayed substitutions, as the resulting methods will appear in the
-        ;; object and shadow them.
-        (where (s ...) (remove-all-shadows s_d ... m ...))
-        ;; The methods of the inheriting object must be unique.
+        ;; definition in the inheriting object.
+        (where (M_up ...) (override M_u ... m_d ...))
+        ;; Fetch the names of all the methods in the resulting object.
+        (where (m ...) ,(append (term (m_d ...))
+                                (term (names M_up ...))))
+        ;; An object's method names must be unique.
         (side-condition (term (unique m ...)))
-        inherits)))
+        ;; Build fresh field names for each of the statements (this builds
+        ;; unnecessary fresh names for expressions as well).
+        (fresh ((y ...) (S ...)))
+        ;; Collect the field accessor methods and the resulting object body.
+        (where (M_f ... e ...) (body [S y] ...))
+        ;; Remove the shadowed substitutions before applying them to the body.
+        (where (s ...) (all-object-shadows s_d ... (M_up ...)))
+        inherits/merged)))
 
 ;; Progress the program p by one step with the reduction relation -->GM.
 (define (step-->GM p) (apply-reduction-relation -->GM p))
 
 ;; Evaluate an expression starting with an empty store.
-(define-metafunction GI
+(define-metafunction GO
   eval : e -> e
-  [(eval e) ,(car (term (run [e ()])))])
+  [(eval e) ,(second (term (run [() e])))])
 
 ;; Apply the reduction relation -->GM until the result is a value or the program
 ;; gets stuck or has an error.
-(define-metafunction GI
-  run : p -> [e σ]
-  [(run [uninitialised σ]) [uninitialised σ]]
-  [(run [(ref ℓ) σ]) [(object M ...) σ]
+(define-metafunction GO
+  run : p -> p
+  [(run [σ uninitialised]) [σ uninitialised]]
+  [(run [σ (ref ℓ)]) [σ (object M ...)]
    (where [M ...] (lookup σ ℓ))]
   [(run p) (run p_p)
    (where (p_p) ,(step-->GM (term p)))]
@@ -87,7 +84,7 @@
 
 ;; Run the term t as an initial program with the reduction relation -->GM,
 ;; returning the resulting object, stuck program, or error, and the store.
-(define (run-->GM t) (term (run [,t ()])))
+(define (run-->GM t) (term (run [() ,t])))
 
 ;; Run the traces function on the given term as an initial program with the
 ;; reduction relation -->GM.

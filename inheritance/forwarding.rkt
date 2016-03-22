@@ -12,31 +12,31 @@
 ;; inheritance.
 (define -->GF
   (extend-reduction-relation
-   -->GR
+   -->GPI
    GO
    #:domain p
    ;; Allocate the object o, converting fields into assignments with local
    ;; requests substituted to the new object, and ultimately return the
    ;; resulting reference.
-   (--> [(in-hole E (name o (object M ... F ...))) σ]
-        ;; This substitution is into the body of the object.  The use of self
-        ;; and local requests in the method bodies will be handled when they are
-        ;; requested.
-        [(in-hole E (subst [ℓ self] [ℓ m ...] (field-assigns ℓ F ... (ref ℓ))))
-         ;; Under forwarding, all references to self and local requests are
-         ;; substituted in methods that are placed in the store.
-         (store σ [(subst-method [ℓ self] [ℓ m ...] M) ...
-                   (subst-method [ℓ self] M_f) ...])]
+   (--> [σ (in-hole E (object M ... S ...))]
+        ;; Under forwarding, all references to self and local requests are
+        ;; substituted in methods that are placed in the store.
+        [(store σ (object (subst-method [ℓ (self 0)] [(self 0) m ...] M) ...
+                          (subst-method [ℓ (self 0)] M_f) ...))
+         (in-hole E (subst [ℓ (self 0)] [(self 0) m ...] (seq e ... (ref ℓ))))]
         ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))
         ;; The method names are used for substituting local requests, as well as
         ;; ensuring the resulting object has unique method names.
-        (where (m ...) (object-names o))
-        ;; The generated getter and setter methods are included in the store.
-        (where (M_f ...) (field-methods F ...))
+        (where (m ...) (names M ... S ...))
         ;; An object's method names must be unique.
         (side-condition (term (unique m ...)))
-        object)))
+        ;; Build fresh field names for each of the statements (this builds
+        ;; unnecessary fresh names for expressions as well).
+        (fresh ((y ...) (S ...)))
+        ;; Collect the field accessor methods and the resulting object body.
+        (where (M_f ... e ...) (body [S y] ...))
+        object/forwarding)))
 
 ;; Progress the program p by one step with the reduction relation -->GF.
 (define (step-->GF p) (apply-reduction-relation -->GF p))
@@ -44,14 +44,14 @@
 ;; Evaluate an expression starting with an empty store.
 (define-metafunction GO
   eval : e -> e
-  [(eval e) ,(car (term (run [e ()])))])
+  [(eval e) ,(second (term (run [() e])))])
 
 ;; Apply the reduction relation -->GF until the result is a value or the program
 ;; gets stuck or has an error.
 (define-metafunction GO
-  run : p -> [e σ]
-  [(run [uninitialised σ]) [uninitialised σ]]
-  [(run [(ref ℓ) σ]) [(object M ...) σ]
+  run : p -> p
+  [(run [σ uninitialised]) [σ uninitialised]]
+  [(run [σ (ref ℓ)]) [σ (object M ...)]
    (where [M ...] (lookup σ ℓ))]
   [(run p) (run p_p)
    (where (p_p) ,(step-->GF (term p)))]
@@ -63,7 +63,7 @@
 
 ;; Run the term t as an initial program with the reduction relation -->GF,
 ;; returning the resulting object, stuck program, or error, and the store.
-(define (run-->GF t) (term (run [,t ()])))
+(define (run-->GF t) (term (run [() ,t])))
 
 ;; Run the traces function on the given term as an initial program with the
 ;; reduction relation -->GF.
