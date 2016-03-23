@@ -308,8 +308,8 @@
   ;; Terminate when there are no more elements to process.
   [(zip-stmts) ()]
   ;; Move to the next list when one is exhausted.
-  [(zip-stmts y ... () (S ...) ...) (() (S_p ...) ...)
-   (where ((S_p ...) ...) (zip-stmts y ... (S ...) ...))]
+  [(zip-stmts y ... () (S ...) ...) (() ([S_p y_p] ...) ...)
+   (where (([S_p y_p] ...) ...) (zip-stmts y ... (S ...) ...))]
   ;; Pair the next name with the next statement, and recurse.
   [(zip-stmts y y_r ... (S S_l ...) (S_r ...) ...)
    (([S y] [S_p y_p] ...) ([S_pr y_pr] ...) ...)

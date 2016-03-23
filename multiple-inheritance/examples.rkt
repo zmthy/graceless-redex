@@ -1,11 +1,10 @@
 #lang racket
 
 (require redex
-         "test.rkt"
-         "uniform.rkt")
+         "test.rkt")
 
 (provide (all-defined-out)
-         (all-from-out "uniform.rkt"))
+         (all-from-out "test.rkt"))
 
 ;; Test if expressions can cause a Racket error.
 (redex-check Graceless-Inheritance e (eval-->GU (term e)))
@@ -208,5 +207,74 @@
 
 (test-->>GU override-field
             (term [x]))
+
+(define multiple-inherits
+  (term (object
+         (inherits (object) as x)
+         (inherits (object) as y))))
+
+(test-->>GU multiple-inherits
+            (term []))
+
+(define multiple-requests
+  (term (object
+         (inherits (object
+                    (method a () done)) as x)
+         (inherits (object
+                    (method b () done)) as y)
+         (a)
+         (b))))
+
+(test-->>GU multiple-requests
+            (term [a b]))
+
+(define multiple-supers
+  (term (object
+         (inherits (object
+                    (method a () done)) as x)
+         (inherits (object
+                    (method b () done)) as y)
+         (x a)
+         (y b))))
+
+(test-->>GU multiple-supers
+            (term [a b]))
+
+(define method-conflict
+  (term (object
+         (inherits (object
+                    (method m () done)) as x)
+         (inherits (object
+                    (method m () done)) as y)
+         (m))))
+
+(test-->>GU method-conflict
+            (term stuck))
+
+(define method-conflict-resolved
+  (term (object
+         (inherits (object
+                    (method m () done)) as x)
+         (inherits (object
+                    (method m () done)) as y)
+         (method m () done)
+         (m))))
+
+(test-->>GU method-conflict-resolved
+            (term [m]))
+
+(define overridden-super-fields
+  (term ((object
+          (inherits (object
+                     (def a = self)) as x)
+          (inherits (object
+                     (def b = self)) as y)
+          (method a () done)
+          (method b () done)
+          (method m () (x a)))
+         m)))
+
+(test-->>GU overridden-super-fields
+            (term [a b m]))
 
 (test-results)

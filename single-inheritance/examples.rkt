@@ -1,19 +1,10 @@
 #lang racket
 
 (require redex
-         "test.rkt"
-         "forwarding.rkt"
-         "concatenation.rkt"
-         "delegation.rkt"
-         "merged.rkt"
-         "uniform.rkt")
+         "test.rkt")
 
 (provide (all-defined-out)
-         (all-from-out "forwarding.rkt")
-         (all-from-out "concatenation.rkt")
-         (all-from-out "delegation.rkt")
-         (all-from-out "merged.rkt")
-         (all-from-out "uniform.rkt"))
+         (all-from-out "test.rkt"))
 
 ;; Test if expressions can cause a Racket error.
 (redex-check Graceless-Inheritance e (eval-->GF (term e)))

@@ -1,14 +1,10 @@
 #lang racket
 
 (require redex
-         "graceless.rkt"
-         (prefix-in test: "test.rkt"))
+         "test.rkt")
 
 (provide (all-defined-out)
-         (all-from-out "graceless.rkt"))
-
-(define (test-->>G t r)
-  (test:test-->>G -->G t r))
+         (all-from-out "test.rkt"))
 
 ;; Test if expressions can cause a Racket error.
 (redex-check Graceless e (eval-->G (term e)))

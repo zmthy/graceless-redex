@@ -1,7 +1,16 @@
 #lang racket
 
 (require redex
-         "test.rkt")
+         (only-in "single-inheritance/test.rkt"
+                  test-->>GF
+                  test-->>GD
+                  test-->>GC
+                  test-->>GO
+                  test-->>GM
+                  test-->>GU
+                  test-->>GI)
+         (rename-in "multiple-inheritance/test.rkt"
+                    [test-->>GU test-->>GMU]))
 
 (provide (all-defined-out))
 
@@ -157,21 +166,20 @@
 
 ;; Multiple inheritance
 (define multiple-inheritance
-  (term (request
-         (object
+  (term ((object
           (method parent1 ()
                   (object
-                   (method from1 ())))
+                   (method from1 () done)))
           (method parent2 ()
                   (object
-                   (method from2 ())))
+                   (method from2 () done)))
           (def child =
             (object
-             (inherits (request parent1))
-             (inherits (request parent2)))))
+             (inherits (parent1) as x)
+             (inherits (parent2) as y))))
          child)))
 
-;; We don't bother testing the single inheritance systems here, as this isn't
-;; valid syntax for them.
+(test-->>GMU multiple-inheritance
+            (term [from1 from2]))
 
 (test-results)

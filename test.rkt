@@ -3,7 +3,8 @@
 (require redex
          "graceless.rkt")
 
-(provide test-->>G)
+(provide test-->>G
+         (all-from-out "graceless.rkt"))
 
 (define-metafunction G
   not-result : any -> boolean
@@ -38,9 +39,9 @@
   [(result-equiv e [σ e]) #t]
   [(result-equiv _ _) #f])
 
-(define (test-->>G a t r)
+(define (test-->>G t r)
   (test-->>
-   a
+   -->G
    #:equiv (λ (a b) (term (result-equiv ,a ,b)))
    (program t)
    r))
