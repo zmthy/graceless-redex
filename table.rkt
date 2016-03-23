@@ -14,7 +14,10 @@
                   test-->>GMU)
          (only-in (rename-in "transform-inheritance/test.rkt"
                              [test-->>GU test-->>GTU])
-                  test-->>GTU))
+                  test-->>GTU)
+         (only-in (rename-in "positional-inheritance/test.rkt"
+                             [test-->>GU test-->>GPU])
+                  test-->>GPU))
 
 (provide (all-defined-out))
 
@@ -185,6 +188,8 @@
 
 (test-->>GMU multiple-inheritance
             (term [from1 from2]))
+(test-->>GPU multiple-inheritance
+            (term [from1 from2]))
 
 ;; Multiple inheritance with the method transformation syntax.
 (define transform-inheritance
@@ -203,5 +208,55 @@
 
 (test-->>GTU transform-inheritance
              (term [from1 from2]))
+
+;; Inheriting from something inherited from a parent.
+(define parent-inheritance
+  (term ((object
+          (method parent1 ()
+                  (object
+                   (method subparent ()
+                           (object
+                             (method fromsubparent () done)
+                             )
+                           )))
+          (method parent2 ()
+                  (object
+                   (method from2 () done)))
+          (def child =
+            (object
+             (inherits (parent1) as x)
+             (inherits (subparent) as z)
+             (inherits (parent2) as y))))
+         child)))
+
+(test-->>GMU parent-inheritance
+            (term stuck))
+(test-->>GPU parent-inheritance
+            (term [from2 subparent fromsubparent]))
+
+;; Parent inheritance, formatted for transformation.
+;; Because transformation has no "as" clauses, the
+;; above case is not well-formed under this model.
+(define parent-inheritance-trans
+  (term ((object
+          (method parent1 ()
+                  (object
+                   (method subparent ()
+                           (object
+                             (method fromsubparent () done)
+                             )
+                           )))
+          (method parent2 ()
+                  (object
+                   (method from2 () done)))
+          (def child =
+            (object
+             (inherits (parent1))
+             (inherits (subparent))
+             (inherits (parent2)))))
+         child)))
+
+(test-->>GTU parent-inheritance-trans
+            (term stuck))
 
 (test-results)
