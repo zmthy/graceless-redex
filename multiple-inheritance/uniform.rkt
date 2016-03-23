@@ -17,7 +17,7 @@
    #:domain p
    ;; Concatenate the body of the inherited objects into the inheriting object's
    ;; body, removing overrides.
-   (--> [σ (in-hole E (object (inherits (object M ... S ...) as x) ...
+   (--> [σ (in-hole E (object (inherits (object M ... S ...) any ...) ...
                               s_d ... M_d ... S_d ...))]
         ;; The resulting object includes the super methods, the substituted
         ;; methods, and field accessors.
@@ -25,14 +25,19 @@
                  (term σ) (term ((object M_p ... M_f ...) ...)))
          (in-hole E (object M_up ...
                             (subst-method s ...
-                                          [ℓ as (self 0) / x] ... M_d) ...
+                                          s_u ...
+                                          M_d) ...
                             e_p ...
                             (subst-stmt s ...
-                                        [ℓ as (self 0) / x] ... S_d) ...))]
+                                        s_u ... S_d) ...))]
+        ;; Fetch the optional names of the inherits clauses.
+        (where ((x ...) ...) ((optional-name any ...) ...))
         ;; Only execute this rule if there are inherits clauses to process.
-        (side-condition (pair? (term (x ...))))
+        (side-condition (pair? (term ((x ...) ...))))
         ;; Fetch fresh locations for each inherits clause.
-        (where (ℓ ...) (fresh-locations σ x ...))
+        (where (ℓ ...) (fresh-locations σ (x ...) ...))
+        ;; Build super substitutions by pairing the locations with the names.
+        (where (s_u ...) (optional-subst ℓ ... (x ...) ...))
         ;; Collect the names of the definitions in the inherited objects.
         (where ((m ...) ...) ((names M ... S ...) ...))
         ;; An object's method names must be unique.

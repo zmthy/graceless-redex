@@ -10,7 +10,9 @@
 
 ;; The core syntax of Graceless extended with multiple inheritance.
 (define-extended-language Graceless-Inheritance Graceless
-  (I (inherits e as x))
+  ;; Inherits clause with optional name.
+  (I (inherits e)
+     (inherits e as x))
   (e ....
      abstract)
   ;; Super references are now permitted to be any name.
@@ -27,7 +29,7 @@
 ;; syntax.
 (define-extended-language GI GIU
   ;; Inherits clause ready to be processed.
-  (Io (inherits (object M ... S ...) as x))
+  (Io (inherits (object M ... S ...) any ...))
   ;; Substitutions are delayed in objects.
   (o (object I ... s ... M ... S ...))
   ;; Aliases are still receivers at runtime.
@@ -39,7 +41,7 @@
   ;; We can't write a where clause on the evaluation context, so the inherits
   ;; context is included directly here, and we use EF to handle requests.
   (E ....
-     (object Io ... (inherits E as x) I ... s ... M ... S ...))
+     (object Io ... (inherits E any ...) I ... s ... M ... S ...))
   ;; The context EF is used for anything which is not directly in an inherits
   ;; clause.  The complex contexts EG and the simple hole in EF are separated to
   ;; prevent a hole from appearing directly in an inherits clause of EF.
@@ -48,7 +50,7 @@
       (m v ... EF e ...)
       (EF e ...)
       (v x <- EF)
-      (object Io ... (inherits EG as x) I ... M ... S ...))
+      (object Io ... (inherits EG any ...) I ... M ... S ...))
   (EF EG
       hole)
   ;; This separate context will be redefined by some languages to allow objects
@@ -129,8 +131,9 @@
   ;; Substitutions get delayed in object bodies by an inherits clause, though
   ;; the substitution continues into the clause's expression.  Substitutions
   ;; that will obviously be removed from the object are immediately removed.
-  [(subst s ... (name o (object (inherits e as x) ... s_i ... M ... S ...)))
-   (object (inherits (subst s ... e) as x) ... s_i ... s_p ... M ... S ...)
+  [(subst s ... (name o (object (inherits e any ...) ... s_i ... M ... S ...)))
+   (object (inherits (subst s ... e) any ...) ... s_i ... s_p ... M ... S ...)
+   (where (x ...) (concat (optional-name any ...) ...))
    (where (s_p ...) (all-object-shadows s ... (x ... M ... S ...)))]
   ;; Continue the substitution into a request.
   [(subst s ... (r m e ...))
@@ -220,12 +223,12 @@
 (define-metafunction/extension graceless:fresh-location GI
   fresh-location : σ -> ℓ)
 
-;; Fetch as many fresh locations for the store σ as there are names.
+;; Fetch as many fresh locations for the store σ as there are other values.
 (define-metafunction GI
-  fresh-locations : σ x ... -> (ℓ ...)
-  [(fresh-locations σ x ...)
+  fresh-locations : σ any ... -> (ℓ ...)
+  [(fresh-locations σ any ...)
    ,(let ([ℓ (term (fresh-location σ))])
-      (build-list (length (term (x ...))) (λ (x) (+ x ℓ))))])
+      (build-list (length (term (any ...))) (λ (x) (+ x ℓ))))])
 
 ;; Search for the object at the location ℓ in the store σ.
 (define-metafunction/extension graceless:lookup GI
@@ -299,6 +302,27 @@
    (override M ... m_l ... m m_r ...)]
   [(override M M_i ... m ...) (M M_p ...)
    (where (M_p ...) (override M_i ... m ...))])
+
+;; Handle the optional name on an inherits clause, returning either an empty or
+;; singleton list.
+(define-metafunction GI
+  optional-name : any ... -> (x ...)
+  ;; No name, return an empty list.
+  [(optional-name) ()]
+  ;; A name, return a singleton list.
+  [(optional-name _ x) (x)])
+
+;; Zip a list of references with a list of optional names into super
+;; substitutions, dropping cases where there is no name.
+(define-metafunction GI
+  optional-subst : ℓ ... (x ...) ... -> (s ...)
+  ;; Complete when there's nothing left to process.
+  [(optional-subst) ()]
+  ;; If there is no name, ignore the reference and move on.
+  [(optional-subst _ ℓ ... () (x ...) ...) (optional-subst ℓ ... (x ...) ...)]
+  ;; If there is a name, pair them in a substitution and recurse.
+  [(optional-subst ℓ ℓ_r ... (x) (x_r ...) ...) ([ℓ as (self 0) / x] s ...)
+   (where (s ...) (optional-subst ℓ_r ... (x_r ...) ...))])
 
 ;; Zip a list of names with a list of list of statements.  This is necessary
 ;; because Redex can only generate a flat list of fresh variables, but we need
@@ -449,9 +473,9 @@
    #:domain p
    ;; A request directly in an inherits clause is only allowed to proceed if it
    ;; results in a fresh object.
-   (--> [σ (in-hole E (object Io ... (inherits (v m v_a ...) as x) I ...
+   (--> [σ (in-hole E (object Io ... (inherits (v m v_a ...) any ...) I ...
                               s ... M ... S ...))]
-        [σ_p (in-hole E (object Io ... (inherits e as x) I ...
+        [σ_p (in-hole E (object Io ... (inherits e any ...) I ...
                                 s ... M ... S ...))]
         ;; We can't pattern match here, because the result could be either a
         ;; single object or an expression sequence.

@@ -39,27 +39,14 @@
 (test-->>GI registration
             (term [x worked]))
 
-;; Registration with "as" clause
-(define registration-as
-  (term ((object
-          (method parent ()
-                  (object
-                   (def x = ((registered :=) self))))
-          (var registered)
-          (def x = (object
-                    (inherits (parent) as super)
-                    (method worked () done)
-                    )))
-         registered)))
-
-(test-->>GMU registration-as
-            (term [x worked]))
+(test-->>GMU registration
+             (term [x worked]))
 
 (test-->>GTU registration
-            (term [x worked]))
+             (term [x worked]))
 
-;(test-->>GPU registration-as
-;            (term [x worked]))
+;; (test-->>GPU registration-as
+;;              (term [x worked]))
 
 ;; Preëxisting
 (define preexisting
@@ -74,14 +61,14 @@
 (test-->>GI preexisting
             (term stuck))
 
-;(test-->>GMU preexisting
-;            (term stuck))
-;
+(test-->>GMU preexisting
+            (term stuck))
+
 (test-->>GTU preexisting
             (term stuck))
-;
-;(test-->>GPU preexisting
-;            (term stuck))
+
+;; (test-->>GPU preexisting
+;;              (term stuck))
 
 ;; Downcalls during construction
 (define downcalls-during
@@ -112,14 +99,14 @@
 (test-->>GU downcalls-during
             (term [isChild]))
 
-;(test-->>GMU downcalls-during
-;            (term [isChild]))
-;
+(test-->>GMU downcalls-during
+             (term [isChild]))
+
 (test-->>GTU downcalls-during
-            (term [isChild]))
-;
-;(test-->>GPU downcalls-during
-;            (term [isChild]))
+             (term [isChild]))
+
+;; (test-->>GPU downcalls-during
+;;              (term [isChild]))
 
 ;; Downcalls after construction
 (define downcalls-after
@@ -154,14 +141,14 @@
 (test-->>GI downcalls-after
             (term [isChild]))
 
-;(test-->>GMU downcalls-after
-;            (term [isChild]))
-;
+(test-->>GMU downcalls-after
+             (term [isChild]))
+
 (test-->>GTU downcalls-after
-            (term [isChild]))
-;
-;(test-->>GPU downcalls-after
-;            (term [isChild]))
+             (term [isChild]))
+
+;; (test-->>GPU downcalls-after
+;;              (term [isChild]))
 
 ;; Action at a distance, downwards
 (define distance-down
@@ -192,14 +179,14 @@
 (test-->>GI distance-down
             (term stuck))
 
-;(test-->>GMU distance-down
-;            (term stuck))
-;
+(test-->>GMU distance-down
+             (term stuck))
+
 (test-->>GTU distance-down
-            (term stuck))
-;
-;(test-->>GPU distance-down
-;            (term stuck))
+             (term stuck))
+
+;; (test-->>GPU distance-down
+;;              (term stuck))
 
 ;; Action at a distance, upwards
 (define distance-up
@@ -229,14 +216,14 @@
 (test-->>GI distance-up
             (term stuck))
 
-;(test-->>GMU distance-up
-;            (term stuck))
-;
+(test-->>GMU distance-up
+             (term stuck))
+
 (test-->>GTU distance-up
             (term stuck))
-;
-;(test-->>GPU distance-up
-;            (term stuck))
+
+;; (test-->>GPU distance-up
+;;              (term stuck))
 
 ;; Multiple inheritance with the standard syntax.
 (define multiple-inheritance
@@ -255,6 +242,7 @@
 
 (test-->>GMU multiple-inheritance
             (term [from1 from2]))
+
 (test-->>GPU multiple-inheritance
             (term [from1 from2]))
 
@@ -298,6 +286,7 @@
 
 (test-->>GMU parent-inheritance
             (term stuck))
+
 (test-->>GPU parent-inheritance
             (term [from2 subparent fromsubparent]))
 
