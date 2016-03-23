@@ -68,11 +68,11 @@
   ;; Field mapping.
   (F [x v])
   ;; Substitution.
-  (s [v x]
+  (s [v / x]
      ;; Substitution for some self.
-     [ℓ (self n)]
+     [ℓ / (self n)]
      ;; Qualifying substitution to some self.
-     [(self n) m ...])
+     [(self n) / m ...])
   ;; Program.
   (p [σ e])
   ;; Evaluation context.
@@ -89,12 +89,12 @@
 (define-metafunction G
   remove-shadows : s m ... -> (s ...)
   ;; If the name x appears in m, remove it.
-  [(remove-shadows [_ x] _ ... x _ ...) ()]
+  [(remove-shadows [_ / x] _ ... x _ ...) ()]
   ;; If any name in the substitution appears in m, recurse without it.
   [(remove-shadows [any ... m m_s ...] m_l ... m m_r ...)
    (remove-shadows [any ... m_s ...] m_l ... m m_r ...)]
-  ;; If all of the names have been removed from a substitution, remove it.
-  [(remove-shadows [any] _ ...) ()]
+  ;; If the remaining name in the substitution appears in m, throw it away.
+  [(remove-shadows [(self n) / m] _ ... m _ ...) ()]
   ;; Otherwise, retain the remaining substitution.
   [(remove-shadows s _ ...) (s)])
 
@@ -113,11 +113,11 @@
 (define-metafunction G
   object-shadows : s (M ... S ...) -> (s ...)
   ;; Substitutions of self are incremented.
-  [(object-shadows [ℓ e] _) ([ℓ (inc-self e)])]
+  [(object-shadows [ℓ / e] _) ([ℓ / (inc-self e)])]
   ;; Otherwise collect the method names of the object, remove-shadows, and
   ;; increment if the substitution is to self.
-  [(object-shadows [e m_s ...] (M ... S ...))
-   (remove-shadows [(inc-self e) m_s ...] m_o ...)
+  [(object-shadows [e / m_s ...] (M ... S ...))
+   (remove-shadows [(inc-self e) / m_s ...] m_o ...)
    (where (m_o ...) (names M ... S ...))])
 
 ;; Apply remove-object-shadows for the object o to each substitution s.
@@ -127,11 +127,12 @@
    ,(append-map (λ (s) (term (object-shadows ,s (M ... S ...))))
                 (term (s ...)))])
 
-;; Determine whether the given thing appears in the substitutions s.
+;; Determine whether the given thing is being substituted out by the
+;; substitutions s.
 (define-metafunction G
   not-in-subst : any s ... -> boolean
   ;; This matching syntax captures any name in any kind of substitution.
-  [(not-in-subst any _ ... [_ m ... any m ...] _ ...) #f]
+  [(not-in-subst any _ ... [_ ... / _ ... any _ ...] _ ...) #f]
   ;; In any other case, it is not in the list.
   [(not-in-subst _ _ ...) #t])
 
@@ -148,16 +149,16 @@
    ((subst s ... e) m (subst s ... e_a) ...)]
   ;; Substitute out an unqualified request with no arguments for a value v as
   ;; long as there is no later substitution in the list.
-  [(subst _ ... [v x] s ... (x)) v
+  [(subst _ ... [v / x] s ... (x)) v
    (side-condition (term (not-in-subst x s ...)))]
   ;; Substitute out an unqualified request for one qualified in a reference to
   ;; ℓ, so long as there is no later substitution in the list.  Continue the
   ;; substitution into the arguments afterwards.
-  [(subst s_l ... (name s [(self n) _ ... m _ ...]) s_r ... (m e ...))
+  [(subst s_l ... (name s [(self n) / _ ... m _ ...]) s_r ... (m e ...))
    (subst s_l ... s s_r ... ((self n) m e ...))
    (side-condition (term (not-in-subst m s_r ...)))]
   ;; Just continue the substitution into a request when no substitution applies.
-  [(subst s (m e ...)) (m (subst s e) ...)]
+  [(subst s ... (m e ...)) (m (subst s ... e) ...)]
   ;; Continue the substitution into a sequence.
   [(subst s ... (e ...)) ((subst s ... e) ...)]
   ;; Continue the substitution into a field lookup.
@@ -167,10 +168,10 @@
    ((subst s ... e) y <- (subst s ... e_a))]
   ;; Substitute out self for the given reference, so long as there is no later
   ;; substitution in the list.
-  [(subst _ ... [ℓ (self n)] s ... (self n)) (ref ℓ)
+  [(subst _ ... [ℓ / (self n)] s ... (self n)) (ref ℓ)
    (side-condition (term (not-in-subst (self n) s ...)))]
   ;; As above, for the direct self sugar.
-  [(subst _ ... [ℓ (self 0)] s ... self) (ref ℓ)
+  [(subst _ ... [ℓ / (self 0)] s ... self) (ref ℓ)
    (side-condition (term (not-in-subst (self 0) s ...)))]
   ;; All other syntax is a terminal, so just return that.
   [(subst _ ... e) e])
@@ -347,7 +348,7 @@
         ;; self.  This rule is slightly different from the text, which assumes
         ;; that the body is interpreted as a single sequenced expression.  Here
         ;; we manually sequence the body.
-        [σ (in-hole E (subst [ℓ (self 0)] [v x] ... (seq e ...)))]
+        [σ (in-hole E (subst [ℓ / (self 0)] [v / x] ... (seq e ...)))]
         ;; Fetch the one method with the name given in the request.
         (where (object _ ... (method m (x ..._a) e ...) _ ...) (lookup σ ℓ))
         request)
@@ -358,8 +359,9 @@
         ;; This substitution is into the body of the object.  The use of self
         ;; and local requests in the method bodies will be handled when they are
         ;; requested.
-        [(store σ (object (subst-method [(self 0) m ...] M) ... M_f ...))
-         (in-hole E (subst [ℓ (self 0)] [(self 0) m ...] (seq e ... (ref ℓ))))]
+        [(store σ (object (subst-method [(self 0) / m ...] M) ... M_f ...))
+         (in-hole E (subst [ℓ / (self 0)]
+                           [(self 0) / m ...] (seq e ... (ref ℓ))))]
         ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))
         ;; The method names are used for substituting local requests, as well as

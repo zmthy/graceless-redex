@@ -8,9 +8,9 @@
                      run)
          (all-from-out "common.rkt"))
 
-;; Small-step dynamic semantics of Graceless extended with delegating
+;; Small-step dynamic semantics of Graceless extended with forwarding
 ;; inheritance.
-(define -->GD
+(define -->GF
   (extend-reduction-relation
    -->GPI
    GO
@@ -21,9 +21,10 @@
    (--> [σ (in-hole E (object M ... S ...))]
         ;; Under forwarding, all references to self and local requests are
         ;; substituted in methods that are placed in the store.
-        [(store σ (object (subst-method [(self 0) m ...] M) ...
-                          (subst-method [ℓ (self 0)] M_f) ...))
-         (in-hole E (subst [ℓ (self 0)] [(self 0) m ...] (seq e ... (ref ℓ))))]
+        [(store σ (object (subst-method [ℓ / (self 0)] [(self 0) / m ...] M) ...
+                          (subst-method [ℓ / (self 0)] M_f) ...))
+         (in-hole E (subst [ℓ / (self 0)]
+                           [(self 0) / m ...] (seq e ... (ref ℓ))))]
         ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))
         ;; The method names are used for substituting local requests, as well as
@@ -36,17 +37,17 @@
         (fresh ((y ...) (S ...)))
         ;; Collect the field accessor methods and the resulting object body.
         (where (M_f ... e ...) (body [S y] ...))
-        object/delegation)))
+        object/forwarding)))
 
-;; Progress the program p by one step with the reduction relation -->GD.
-(define (step-->GD p) (apply-reduction-relation -->GD p))
+;; Progress the program p by one step with the reduction relation -->GF.
+(define (step-->GF p) (apply-reduction-relation -->GF p))
 
 ;; Evaluate an expression starting with an empty store.
 (define-metafunction GO
   eval : e -> e
   [(eval e) ,(second (term (run [() e])))])
 
-;; Apply the reduction relation -->GD until the result is a value or the program
+;; Apply the reduction relation -->GF until the result is a value or the program
 ;; gets stuck or has an error.
 (define-metafunction GO
   run : p -> p
@@ -54,17 +55,17 @@
   [(run [σ (ref ℓ)]) [σ (object M ...)]
    (where [M ...] (lookup σ ℓ))]
   [(run p) (run p_p)
-   (where (p_p) ,(step-->GD (term p)))]
+   (where (p_p) ,(step-->GF (term p)))]
   [(run p) p])
 
-;; Run the term t as an initial program with the reduction relation -->GD,
+;; Run the term t as an initial program with the reduction relation -->GF,
 ;; returning the resulting object, stuck program, or error.
-(define (eval-->GD t) (term (eval ,t)))
+(define (eval-->GF t) (term (eval ,t)))
 
-;; Run the term t as an initial program with the reduction relation -->GD,
+;; Run the term t as an initial program with the reduction relation -->GF,
 ;; returning the resulting object, stuck program, or error, and the store.
-(define (run-->GD t) (term (run [() ,t])))
+(define (run-->GF t) (term (run [() ,t])))
 
 ;; Run the traces function on the given term as an initial program with the
-;; reduction relation -->GD.
-(define (traces-->GD t) (traces -->GD (program t)))
+;; reduction relation -->GF.
+(define (traces-->GF t) (traces -->GF (program t)))

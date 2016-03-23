@@ -8,33 +8,38 @@
          unique
          program)
 
-;; The core syntax of Graceless extended with inheritance.
+;; The core syntax of Graceless extended with multiple inheritance.
 (define-extended-language Graceless-Inheritance Graceless
+  (I (inherits e as x))
+  (e ....
+     abstract)
+  ;; Super references are now permitted to be any name.
   (r ....
-     super)
+     x)
   (o ....
-     (object I M ... S ...))
-  (I (inherits e)))
+     (object I ... M ... S ...)))
 
-;; The extended inheritance language extended with the runtime system of
-;; Graceless.
+;; The extended multiple inheritance language extended with the runtime system
+;; of Graceless.
 (define-union-language GIU Graceless-Inheritance G)
 
-;; The Graceless runtime extended with inheritance core and runtime syntax.
+;; The Graceless runtime extended with multiple inheritance core and runtime
+;; syntax.
 (define-extended-language GI GIU
+  ;; Inherits clause ready to be processed.
+  (Io (inherits (object M ... S ...) as x))
+  ;; Substitutions are delayed in objects.
+  (o (object I ... s ... M ... S ...))
+  ;; Aliases are still receivers at runtime.
   (r ....
-     ;; Like self, super is equipped with a De Bruijn index, and super is sugar
-     ;; for (super 0).
-     (super n)
      (ref ℓ as e))
-  (I (inherits e s ...))
   ;; Not really, but helps ensure the existing evaluations continue working.
   (v ....
      (ref ℓ as v))
   ;; We can't write a where clause on the evaluation context, so the inherits
   ;; context is included directly here, and we use EF to handle requests.
   (E ....
-     (object (inherits E s ...) M ... S ...))
+     (object Io ... (inherits E) I ... s ... M ... S ...))
   ;; The context EF is used for anything which is not directly in an inherits
   ;; clause.  The complex contexts EG and the simple hole in EF are separated to
   ;; prevent a hole from appearing directly in an inherits clause of EF.
@@ -43,14 +48,14 @@
       (m v ... EF e ...)
       (EF e ...)
       (v x <- EF)
-      (object (inherits EG s ...) M ... S ...))
+      (object Io ... (inherits EG s ...) I ... M ... S ...))
   (EF EG
       hole)
   ;; This separate context will be redefined by some languages to allow objects
   ;; to be resolved normally in an inherits clause.
   (EO EF)
   (s ....
-     [ℓ as (self n) (super n)]))
+     [ℓ as (self n) / x]))
 
 ;; The languages without the freshness restriction redefine EF to be E.
 (define-extended-language GO GI
@@ -74,72 +79,74 @@
    ,(append-map (λ (s) (term (remove-shadows ,s m ...)))
                 (term (s ...)))])
 
-;; Increment if the receiver r is a super reference, otherwise just return the
-;; receiver.
-(define-metafunction GI
-  inc-super : r -> r
-  [(inc-super (super n)) (super ,(add1 (term n)))]
-  [(inc-super r) r])
-
 ;; Remove any names from the substitution s which are shadowed by a definition
 ;; in the object o.  If the substitution still has names remaining, it is
 ;; returned as the sole element of the list, otherwise the list is empty.  Any
-;; substitution for self or super is incremented, as the object it refers to
-;; will be further away inside the inner object.
+;; substitution for self is incremented, as the object it refers to will be
+;; further away inside the inner object.
 (define-metafunction GI
-  object-shadows : s (M ... S ...) -> (s ...)
+  object-shadows : s (x ... M ... S ...) -> (s ...)
   ;; Substitutions of self are incremented.
-  [(object-shadows [ℓ e] _) ([ℓ (inc-self e)])]
-  ;; Substitutions of super (and the accompanying self) are incremented.
-  [(object-shadows [ℓ as e r] _) ([ℓ as (inc-self e) (inc-super r)])]
+  [(object-shadows [ℓ / e] _) ([ℓ / (inc-self e)])]
+  ;; Substitutions to an alias are removed if a definition with the same name
+  ;; appears in the object.
+  [(object-shadows [ℓ as e / x] (x_i ... M ... S ...)) ()
+   (where (_ ... x _ ...) ,(append (term (x_i ...))
+                                   (term (names M ... S ...))))]
+  ;; Otherwise the substitution to self is incremented.
+  [(object-shadows [ℓ as e / x] _) ([ℓ as (inc-self e) / x])]
   ;; Otherwise collect the method names of the object, remove-shadows, and
   ;; increment if the substitution is to self.
-  [(object-shadows [e m_s ...] (M ... S ...))
-   (remove-shadows [(inc-self e) m_s ...] m_o ...)
+  [(object-shadows [e / m_s ...] (x ... M ... S ...))
+   (remove-shadows [(inc-self e) / m_s ...] x ... m_o ...)
    (where (m_o ...) (names M ... S ...))])
 
 ;; Apply remove-object-shadows for the object o to each substitution s.
 (define-metafunction GI
-  all-object-shadows : s ... (M ... S ...) -> (s ...)
-  [(all-object-shadows s ... (M ... S ...))
-   ,(append-map (λ (s) (term (object-shadows ,s (M ... S ...))))
+  all-object-shadows : s ... (x ... M ... S ...) -> (s ...)
+  [(all-object-shadows s ... (x ... M ... S ...))
+   ,(append-map (λ (s) (term (object-shadows ,s (x ... M ... S ...))))
                 (term (s ...)))])
 
 ;; Determine whether the given thing appears in the substitutions s.
 (define-metafunction/extension graceless:not-in-subst GI
-  not-in-subst : any s ... -> boolean
-  ;; Note that these substitutions don't bind self.
-  [(not-in-subst (super n) _ ... [_ ... (super n)] _ ...) #f])
+  not-in-subst : any s ... -> boolean)
+
+;; Continue subst through expressions e.  This is necessary to avoid confusing
+;; Redex with multiple ellipses in multiple inheritance.
+(define-metafunction GI
+  substs : s ... (e ...) -> (e ...)
+  [(substs s ... (e ...)) ((subst s ... e) ...)])
 
 ;; Perform substitutions through an expression e.
 (define-metafunction GI
   subst : s ... e -> e
-  ;; Substitutions get delayed in object bodies by an inherits clause, though
-  ;; the substitution continues into the clause's expression.  Substitutions
-  ;; that will obviously be removed from the object are immediately removed.
-  [(subst s ... (name o (object (inherits e s_i ...) M ... S ...)))
-   (object (inherits (subst s ... e) s_i ... s_p ...) M ... S ...)
-   (where (s_p ...) (all-object-shadows s ... (M ... S ...)))]
   ;; Continue the substitution into an object body, removing substitutions
   ;; shadowed by the object.
   [(subst s ... (name o (object M ... S ...)))
    (object (subst-method s_p ... M) ... (subst-stmt s_p ... S) ...)
    (where (s_p ...) (all-object-shadows s ... (M ... S ...)))]
+  ;; Substitutions get delayed in object bodies by an inherits clause, though
+  ;; the substitution continues into the clause's expression.  Substitutions
+  ;; that will obviously be removed from the object are immediately removed.
+  [(subst s ... (name o (object (inherits e as x) ... s_i ... M ... S ...)))
+   (object (inherits (subst s ... e) as x) ... s_i ... s_p ... M ... S ...)
+   (where (s_p ...) (all-object-shadows s ... (x ... M ... S ...)))]
   ;; Continue the substitution into a request.
   [(subst s ... (r m e ...))
    ((subst-receiver s ... r) m (subst s ... e) ...)]
   ;; Substitute out an unqualified request with no arguments for a value v as
   ;; long as there is no later substitution in the list.
-  [(subst _ ... [v x] s ... (x)) v
+  [(subst _ ... [v / x] s ... (x)) v
    (side-condition (term (not-in-subst x s ...)))]
   ;; Substitute out an unqualified request for one qualified in a reference to
   ;; ℓ, so long as there is no later substitution in the list.  Continue the
   ;; substitution into the arguments afterwards.
-  [(subst s_l ... (name s [(self n) _ ... m _ ...]) s_r ... (m e ...))
+  [(subst s_l ... (name s [(self n) / _ ... m _ ...]) s_r ... (m e ...))
    (subst s_l ... s s_r ... ((self n) m e ...))
    (side-condition (term (not-in-subst m s_r ...)))]
   ;; Just continue the substitution into a request when no substitution applies.
-  [(subst s (m e ...)) (m (subst s e) ...)]
+  [(subst s ... (m e ...)) (m (subst s ... e) ...)]
   ;; Continue the substitution into a sequence.
   [(subst s ... (e ...)) ((subst s ... e) ...)]
   ;; Continue the substitution into a field lookup.
@@ -149,10 +156,10 @@
    ((subst s ... e) y <- (subst s ... e_a))]
   ;; Substitute out self for the given reference, so long as there is no later
   ;; substitution in the list.
-  [(subst _ ... [ℓ (self n)] s ... (self n)) (ref ℓ)
+  [(subst _ ... [ℓ / (self n)] s ... (self n)) (ref ℓ)
    (side-condition (term (not-in-subst (self n) s ...)))]
   ;; As above, for the direct self sugar.
-  [(subst _ ... [ℓ (self 0)] s ... self) (ref ℓ)
+  [(subst _ ... [ℓ / (self 0)] s ... self) (ref ℓ)
    (side-condition (term (not-in-subst (self 0) s ...)))]
   ;; All other syntax is a terminal, so just return that.
   [(subst _ ... e) e])
@@ -162,21 +169,25 @@
   subst-receiver : s ... r -> r
   ;; Continue the substitution into an expression.
   [(subst-receiver s ... e) (subst s ... e)]
-  ;; Substitute out super for the given reference, so long as there is no
+  ;; Substitute out a super name for the given reference, so long as there is no
   ;; later substitution in the list, then continue the substitutions into the
   ;; resulting alias expression.
-  [(subst-receiver s_l ... [ℓ as e (super n)] s_r ... (super n))
-   (subst-receiver s_l ... [ℓ as e (super n)] s_r ... (ref ℓ as e))
-   (side-condition (term (not-in-subst (super n) s_r ...)))]
-  ;; As above, for the direct super sugar.
-  [(subst-receiver s_l ... [ℓ as e (super 0)] s_r ... super)
-   (subst-receiver s_l ... [ℓ as e (super 0)] s_r ... (ref ℓ as e))
-   (side-condition (term (not-in-subst (super 0) s_r ...)))]
+  [(subst-receiver s_l ... [ℓ as e / x] s_r ... x)
+   (subst-receiver s_l ... [ℓ as e / x] s_r ... (ref ℓ as e))
+   (side-condition (term (not-in-subst x s_r ...)))]
   ;; Continue substitutions into alias expressions.
-  [(subst-receiver s ... (ref ℓ as e)) (ref ℓ as (subst s ... e))])
+  [(subst-receiver s ... (ref ℓ as e)) (ref ℓ as (subst s ... e))]
+  ;; Return any other super reference.
+  [(subst-receiver _ ... x) x])
 
-;; Continue subst through methods into method bodies, removing names which
-;; appear in the parameter list.
+;; Continue subst through methods into method bodies.  This is necessary to
+;; avoid confusing Redex with multiple ellipses in multiple inheritance.
+(define-metafunction GI
+  subst-methods : s ... (M ...) -> (M ...)
+  [(subst-methods s ... (M ...)) ((subst-method s ... M) ...)])
+
+;; Continue subst through a method into its body, removing names which appear
+;; in the parameter list.
 (define-metafunction GI
   subst-method : s ... M -> M
   [(subst-method s ... (method m (x ...) e ...))
@@ -205,9 +216,16 @@
   store-at : σ ℓ O -> σ
   [(store-at σ ℓ O) ,(list-set (term σ) (term ℓ) (term O))])
 
-;; Fetch a fresh location for the store.
+;; Fetch a fresh location for the store σ.
 (define-metafunction/extension graceless:fresh-location GI
   fresh-location : σ -> ℓ)
+
+;; Fetch as many fresh locations for the store σ as there are names.
+(define-metafunction GI
+  fresh-locations : σ x ... -> (ℓ ...)
+  [(fresh-locations σ x ...)
+   ,(let ([ℓ (term (fresh-location σ))])
+      (build-list (length (term (x ...))) (λ (x) (+ x ℓ))))])
 
 ;; Search for the object at the location ℓ in the store σ.
 (define-metafunction/extension graceless:lookup GI
@@ -267,6 +285,12 @@
 (define-metafunction/extension graceless:seq GI
   seq : e ... -> e)
 
+;; Check that each of lists of names have unique elements.
+(define-metafunction GI
+  all-unique : (m ...) ... -> boolean
+  [(all-unique (m ...) ...)
+   ,(andmap (λ (m) (term (unique . ,m))) (term ((m ...) ...)))])
+
 ;; Remove any methods named m from M.
 (define-metafunction GI
   override : M ... m ... -> (M ...)
@@ -275,6 +299,51 @@
    (override M ... m_l ... m m_r ...)]
   [(override M M_i ... m ...) (M M_p ...)
    (where (M_p ...) (override M_i ... m ...))])
+
+;; Zip a list of names with a list of list of statements.  This is necessary
+;; because Redex can only generate a flat list of fresh variables, but we need
+;; to combine it with multiple object bodies at once.
+(define-metafunction GI
+  zip-stmts : y ... (S ...) ... -> (([S y] ...) ...)
+  ;; Terminate when there are no more elements to process.
+  [(zip-stmts) ()]
+  ;; Move to the next list when one is exhausted.
+  [(zip-stmts y ... () (S ...) ...) (() (S_p ...) ...)
+   (where ((S_p ...) ...) (zip-stmts y ... (S ...) ...))]
+  ;; Pair the next name with the next statement, and recurse.
+  [(zip-stmts y y_r ... (S S_l ...) (S_r ...) ...)
+   (([S y] [S_p y_p] ...) ([S_pr y_pr] ...) ...)
+   (where (([S_p y_p] ...) ([S_pr y_pr] ...) ...)
+          (zip-stmts y_r ... (S_l ...) (S_r ...) ...))])
+
+;; Shallow flatten a list of lists.
+(define-metafunction GI
+  concat : (any ...) ... -> (any ...)
+  [(concat) ()]
+  [(concat (any ...) any_r ...)
+   ,(append (term (any ...)) (term (concat any_r ...)))])
+
+;; Join methods from multiple inherited sources, resolving conflicts.
+(define-metafunction GI
+  join : M ... -> (M ...)
+  ;; No methods given, no method received.
+  [(join) ()]
+  ;; Drop an abstract method if there is another method with the same name.
+  [(join (method m _ abstract) M_l ... (name M (method m _ ...)) M_r ...)
+   (join M_l ... M M_r ...)]
+  ;; If the method is not abstract, but there is an abstract method with the
+  ;; same name, shuffle the concrete method to the back.  The abstract method
+  ;; will be removed before it is processed again.
+  [(join (name M (method m _ ...))
+         M_l ... (name M_c (method m _ abstract)) M_r ...)
+   (join M_l ... M_c M_r ... M)]
+  ;; If there are at least two non-abstract methods, create an abstract method
+  ;; and filter out all methods with that name.
+  [(join (method m _ ...) M_l ... (method m _ ...) M_r ...)
+   ,(cons (term (method m () abstract)) (term (join M_p ...)))
+   (where (M_p ...) (override M_l ... M_r ... m))]
+  ;; Otherwise this method's name is unique, continue the join.
+  [(join M M_r ...) ,(cons (term M) (term (join M_r ...)))])
 
 ;; Partial small-step dynamic semantics of Graceless inheritance.  Must be
 ;; extended with rules for inherits clauses object literals.  In order for this
@@ -316,7 +385,7 @@
         ;; self.  This rule is slightly different from the text, which assumes
         ;; that the body is interpreted as a single sequenced expression.  Here
         ;; we manually sequence the body.
-        [σ (in-hole EF (subst [ℓ (self 0)] [v x] ... (seq e ...)))]
+        [σ (in-hole EF (subst [ℓ / (self 0)] [v / x] ... (seq e ...)))]
         ;; Fetch the one method with the name given in the request.
         (where (object _ ... (method m (x ..._a) e ...) _ ...) (lookup σ ℓ))
         request)
@@ -326,7 +395,7 @@
         ;; self.  This rule is slightly different from the text, which assumes
         ;; that the body is interpreted as a single sequenced expression.  Here
         ;; we manually sequence the body.
-        [σ (in-hole EF (subst [ℓ_d (self 0)] [v x] ... (seq e ...)))]
+        [σ (in-hole EF (subst [ℓ_d / (self 0)] [v / x] ... (seq e ...)))]
         ;; Fetch the one method with the name given in the request.
         (where (object _ ... (method m (x ..._a) e ...) _ ...) (lookup σ ℓ_u))
         request/super)))
@@ -346,8 +415,9 @@
         ;; This substitution is into the body of the object.  The use of self
         ;; and local requests in the method bodies will be handled when they are
         ;; requested.
-        [(store σ (object (subst-method [(self 0) m ...] M) ... M_f ...))
-         (in-hole EO (subst [ℓ (self 0)] [(self 0) m ...] (seq e ... (ref ℓ))))]
+        [(store σ (object (subst-method [(self 0) / m ...] M) ... M_f ...))
+         (in-hole EO (subst [ℓ / (self 0)]
+                            [(self 0) / m ...] (seq e ... (ref ℓ))))]
         ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))
         ;; The method names are used for substituting local requests, as well as
@@ -361,35 +431,6 @@
         ;; Collect the field accessor methods and the resulting object body.
         (where (M_f ... e ...) (body [S y] ...))
         object)))
-
-;; Partial small-step dynamic semantics of Graceless inheritance, extended with
-;; simple object inheritance.  Must be extended with rules for object literals.
-(define -->GPI
-  (extend-reduction-relation
-   -->GP
-   GO
-   #:domain p
-   ;; Inherits concatenates the methods in the super object into the object
-   ;; constructor and returns the resulting concatenation.  The actual object
-   ;; reference will be built in the next step.
-   (--> [σ (in-hole E (object (inherits (ref ℓ) s_d ...) M ... S ...))]
-        ;; The resulting object includes the super methods, the substituted
-        ;; methods, and substituted fields.
-        [σ (in-hole E (object M_up ...
-                              (subst-method s ...
-                                            [ℓ as (self 0) (super 0)] M) ...
-                              (subst-stmt s ...
-                                          [ℓ as (self 0) (super 0)] S) ...))]
-        ;; Lookup the super object, fetching both its methods and method names.
-        (where (object F ... M_u ...) (lookup σ ℓ))
-        ;; Collect the names of the definitions in the inheriting object.
-        (where (m ...) (names M ... S ...))
-        ;; Remove from the inherited methods any method which is overridden by a
-        ;; definition in the inheriting object.
-        (where (M_up ...) (override M_u ... m ...))
-        ;; Remove the shadowed substitutions before applying them to the body.
-        (where (s ...) (all-object-shadows s_d ... (M_up ...)))
-        inherits)))
 
 ;; Determine if the given expression is a fresh object expression, or is a
 ;; sequence of expressions which ends in an object expression.
@@ -408,12 +449,14 @@
    #:domain p
    ;; A request directly in an inherits clause is only allowed to proceed if it
    ;; results in a fresh object.
-   (--> [σ (in-hole E (object (inherits (v m v_a ...) s ...) M ... S ...))]
-        [σ_p (in-hole E (object (inherits e s ...) M ... S ...))]
+   (--> [σ (in-hole E (object Io ... (inherits (v m v_a ...) as x) I ...
+                              s ... M ... S ...))]
+        [σ_p (in-hole E (object Io ... (inherits e as x) I ...
+                                s ... M ... S ...))]
         ;; We can't pattern match here, because the result could be either a
         ;; single object or an expression sequence.
         (where ([σ_p e])
                ,(apply-reduction-relation -->GP (term [σ (v m v_a ...)])))
         ;; Ensure the resulting expression is fresh.
         (side-condition (term (is-fresh e)))
-        inherits/fresh)))
+        inherits/multiple-fresh)))
