@@ -84,7 +84,7 @@
   [(inc-super r) r])
 
 ;; Remove any names from the substitution s which are shadowed by a definition
-;; in the object o.  If the substitution still has names remaining, it is
+;; in the given set.  If the substitution still has names remaining, it is
 ;; returned as the sole element of the list, otherwise the list is empty.  Any
 ;; substitution for self or super is incremented, as the object it refers to
 ;; will be further away inside the inner object.

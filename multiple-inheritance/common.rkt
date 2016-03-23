@@ -80,7 +80,7 @@
                 (term (s ...)))])
 
 ;; Remove any names from the substitution s which are shadowed by a definition
-;; in the object o.  If the substitution still has names remaining, it is
+;; in the get set.  If the substitution still has names remaining, it is
 ;; returned as the sole element of the list, otherwise the list is empty.  Any
 ;; substitution for self is incremented, as the object it refers to will be
 ;; further away inside the inner object.
