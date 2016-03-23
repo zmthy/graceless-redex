@@ -145,8 +145,7 @@
    (object (subst-method s_p ... M) ... (subst-stmt s_p ... S) ...)
    (where (s_p ...) (all-object-shadows s ... (M ... S ...)))]
   ;; Continue the substitution into a request.
-  [(subst s ... (e m e_a ...))
-   ((subst s ... e) m (subst s ... e_a) ...)]
+  [(subst s ... (r m e ...)) ((subst s ... r) m (subst s ... e) ...)]
   ;; Substitute out an unqualified request with no arguments for a value v as
   ;; long as there is no later substitution in the list.
   [(subst _ ... [v / x] s ... (x)) v

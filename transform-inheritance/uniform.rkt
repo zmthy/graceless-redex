@@ -15,22 +15,18 @@
    #:domain p
    ;; Concatenate the body of the inherited objects into the inheriting object's
    ;; body, removing overrides.
-   (--> [σ (in-hole E (object (inherits (object M ... S ...) as x) ...
+   (--> [σ (in-hole E (object (inherits (object M ... S ...)
+                                        alias ... (m_a as m_ap) ...
+                                        exclude ... m_e ...) ...
                               s_d ... M_d ... S_d ...))]
         ;; The resulting object includes the super methods, the substituted
         ;; methods, and field accessors.
-        [,(foldl (λ (O σ) (term (store ,σ ,O)))
-                 (term σ) (term ((object M_p ... M_f ...) ...)))
-         (in-hole E (object M_up ...
-                            (subst-method s ...
-                                          [ℓ as (self 0) / x] ... M_d) ...
-                            e_p ...
-                            (subst-stmt s ...
-                                        [ℓ as (self 0) / x] ... S_d) ...))]
+        [σ (in-hole E (object M_up ...
+                              (subst-method s ... M_d) ...
+                              e_p ...
+                              (subst-stmt s ... S_d) ...))]
         ;; Only execute this rule if there are inherits clauses to process.
-        (side-condition (pair? (term (x ...))))
-        ;; Fetch fresh locations for each inherits clause.
-        (where (ℓ ...) (fresh-locations σ x ...))
+        (side-condition (pair? (term ((m_e ...) ...))))
         ;; Collect the names of the definitions in the inherited objects.
         (where ((m ...) ...) ((names M ... S ...) ...))
         ;; An object's method names must be unique.
@@ -49,9 +45,14 @@
         ;; Qualify local requests to this object in the super-methods and
         ;; flatten down to a single list of expressions.
         (where (e_p ...) (concat (substs [(self 0) / m ...] (e ...)) ...))
-        ;; Finally escape this double ellipses hell by concatenating all of the
-        ;; inherited methods.
-        (where (M_c ...) (concat (M_p ...) ... (M_f ...) ...))
+        ;; Run the aliases on the methods from each inherited object.
+        (where ((M_a ...) ...)
+               ((aliases (m_a as m_ap) ... M_p ... M_f ...) ...))
+        ;; Run the excludes on the result of the aliases.
+        (where ((M_e ...) ...) ((excludes m_e ... M_a ...) ...))
+        ;; Finally escape this double ellipses hell by concatenating the result
+        ;; of all the excludes.
+        (where (M_c ...) (concat (M_e ...) ...))
         ;; Resolve conflicts between inherited methods.
         (where (M_u ...) (join M_c ...))
         ;; Collect the names of the definitions in the inheriting object.
