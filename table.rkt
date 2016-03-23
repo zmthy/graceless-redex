@@ -9,8 +9,12 @@
                   test-->>GM
                   test-->>GU
                   test-->>GI)
-         (rename-in "multiple-inheritance/test.rkt"
-                    [test-->>GU test-->>GMU]))
+         (only-in (rename-in "multiple-inheritance/test.rkt"
+                             [test-->>GU test-->>GMU])
+                  test-->>GMU)
+         (only-in (rename-in "transform-inheritance/test.rkt"
+                             [test-->>GU test-->>GTU])
+                  test-->>GTU))
 
 (provide (all-defined-out))
 
@@ -164,7 +168,7 @@
 (test-->>GI distance-up
             (term stuck))
 
-;; Multiple inheritance
+;; Multiple inheritance with the standard syntax.
 (define multiple-inheritance
   (term ((object
           (method parent1 ()
@@ -181,5 +185,23 @@
 
 (test-->>GMU multiple-inheritance
             (term [from1 from2]))
+
+;; Multiple inheritance with the method transformation syntax.
+(define transform-inheritance
+  (term ((object
+          (method parent1 ()
+                  (object
+                   (method from1 () done)))
+          (method parent2 ()
+                  (object
+                   (method from2 () done)))
+          (def child =
+            (object
+             (inherits (parent1))
+             (inherits (parent2)))))
+         child)))
+
+(test-->>GTU transform-inheritance
+             (term [from1 from2]))
 
 (test-results)
