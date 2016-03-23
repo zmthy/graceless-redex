@@ -39,7 +39,7 @@
   ;; We can't write a where clause on the evaluation context, so the inherits
   ;; context is included directly here, and we use EF to handle requests.
   (E ....
-     (object Io ... (inherits E) I ... s ... M ... S ...))
+     (object Io ... (inherits E as x) I ... s ... M ... S ...))
   ;; The context EF is used for anything which is not directly in an inherits
   ;; clause.  The complex contexts EG and the simple hole in EF are separated to
   ;; prevent a hole from appearing directly in an inherits clause of EF.
@@ -48,7 +48,7 @@
       (m v ... EF e ...)
       (EF e ...)
       (v x <- EF)
-      (object Io ... (inherits EG s ...) I ... M ... S ...))
+      (object Io ... (inherits EG as x) I ... M ... S ...))
   (EF EG
       hole)
   ;; This separate context will be redefined by some languages to allow objects
