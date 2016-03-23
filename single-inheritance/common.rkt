@@ -281,11 +281,11 @@
    (where (M_p ...) (override M_i ... m ...))])
 
 ;; Partial small-step dynamic semantics of Graceless inheritance.  Must be
-;; extended with rules for inherits clauses object literals.  In order for this
-;; relation to be common to all of the inherits extensions, we cannot extend
-;; -->G, because we have to ensure that requests are not evaluated normally when
-;; they are directly in an inherits clause.  As explained above, extensions of
-;; the GO language will have normal behaviour for requests.
+;; extended with rules for inherits clauses and object literals.  In order for
+;; this relation to be common to all of the inherits extensions, we cannot
+;; extend -->G, because we have to ensure that requests are not evaluated
+;; normally when they are directly in an inherits clause.  As explained above,
+;; extensions of the GO language will have normal behaviour for requests.
 (define -->GP
   (reduction-relation
    GI

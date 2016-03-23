@@ -8,6 +8,8 @@
                      run)
          (all-from-out "common.rkt"))
 
+;; Small-step dynamic semantics of Graceless extended with uniform identity
+;; multiple inheritance.
 (define -->GU
   (extend-reduction-relation
    -->GPF
