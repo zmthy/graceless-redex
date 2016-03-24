@@ -1,30 +1,31 @@
 #lang racket
 
-;; This file contains tests demonstrating the behaviours of the
-;; different models with respect to the columns of Table 1 in the
-;; paper.
+;; This file contains tests demonstrating the behaviours of the different models
+;; with respect to the columns of Table 1 in the paper.
 ;;
-;; Each test case defines an expression in Graceless, and then for
-;; each model evaluates the expression and verifies that a
-;; particular result is obtained. The possible results used in
-;; these tests are:
+;; Each test case defines an expression in Graceless, and then for each model
+;; evaluates the expression and verifies that a particular result is obtained.
+;; The possible results used in these tests are:
+;;
 ;; - uninitialised, indicating an uninitialised field was accessed.
 ;; - stuck, indicating that the evaluation could not proceed.
-;; - [method names here], indicating that the resulting object
-;;   has exactly the methods listed.
-;; Different behaviours for a property are detected by returning
-;; objects with different method sets for each case.
+;; - [method names here], indicating that the resulting object has exactly the
+;;   methods listed.
 ;;
-;; Comments with each defined term, and next to each test call,
-;; describe the expected behaviour in each condition. Models with
-;; different behaviours are given different expected return values.
+;; Different behaviours for a property are detected by returning objects with
+;; different method sets for each case.
 ;;
-;; We do not test for the -first column, as all our models are
-;; objects-first, for Overload, as it is by construction, or for
-;; Stable, because it is determined by the other columns.
+;; Comments with each defined term, and next to each test call, describe the
+;; expected behaviour in each condition.  Models with different behaviours are
+;; given different expected return values.
 ;;
-;; The models are represented by two- or three-character codes
-;; in the names of the "test-->>xxx" functions:
+;; We do not test for the -first column, as all our models are objects-first,
+;; for Overload, as it is by construction, or for Stable, because it is
+;; determined by the other columns.
+;;
+;; The models are represented by two- or three-character codes in the names of
+;; the "test-->>xxx" functions:
+;;
 ;;    GF   Forwarding
 ;;    GD   Delegation
 ;;    GC   Concatenation
@@ -53,10 +54,9 @@
 ;;    GPC  Positional concatenation
 ;;    GPO  All three of the above
 ;;
-;; The G[MTP][FDCO] models exactly match the behaviours of the
-;; corresponding base model, with the addition of multiple
-;; inheritance of some kind. The tests below repeat the
-;; conditions for each model to demonstrate this.
+;; The G[MTP][FDCO] models exactly match the behaviours of the corresponding
+;; base model, with the addition of multiple inheritance of some kind.  The
+;; tests below repeat the conditions for each model to demonstrate this.
 
 (require redex
          (only-in "single-inheritance/test.rkt"
@@ -104,12 +104,13 @@
 (provide (all-defined-out))
 
 ;; Registration
-;; This expression has methods "x" and "worked" if registration succeeds,
-;; and only "x" if it does not.
 ;;
-;; It assigns "self" to a field in the outer object called "registered"
-;; during the initialisation of a parent, and detects whether the
-;; value assigned is the parent or child object.
+;; This expression has methods "x" and "worked" if registration succeeds, and
+;; only "x" if it does not.
+;;
+;; It assigns "self" to a field in the outer object called "registered" during
+;; the initialisation of a parent, and detects whether the value assigned is the
+;; parent or child object.
 (define registration
   (term ((object
           (method parent ()
@@ -146,11 +147,12 @@
              (term [x]))         ;; concatenation behave the same as single.
 
 ;; Preëxisting
+;;
 ;; This expression has methods "parent" and "child" if inheritance from
 ;; preëxisting objects is supported, and gets stuck otherwise.
 ;;
-;; It simply attempts to inherit from a previously-created object,
-;; and succeeds when that is permitted.
+;; It simply attempts to inherit from a previously-created object, and succeeds
+;; when that is permitted.
 (define preexisting
   (term (object
          (def parent = (object))
@@ -182,18 +184,18 @@
              (term stuck))
 
 ;; Downcalls during construction
-;; This expression has a method "isParent" if the version of "test"
-;; in the parent executes (indicating downcalls are not supported),
-;; and a method "isChild" if the overriding version executes, which
-;; means that downcalls are supported.
 ;;
-;; This test attempts to make a downcall during construction,
-;; defining a method "test" in both the parent and child. The version
-;; in the parent assigns an object with an "isParent" method to the
-;; "downcall" field in the outer object, while the version in the
-;; child assigns one with "isChild". Depending on which version is
-;; accessed, a different method set is on the object stored in the
-;; field.
+;; This expression has a method "isParent" if the version of "test" in the
+;; parent executes (indicating downcalls are not supported), and a method
+;; "isChild" if the overriding version executes, which ;; means that downcalls
+;; are supported.
+;;
+;; This test attempts to make a downcall during construction, defining a method
+;; "test" in both the parent and child.  The version in the parent assigns an
+;; object with an "isParent" method to the "downcall" field in the outer object,
+;; while the version in the child assigns one with "isChild".  Depending on
+;; which version is accessed, a different method set is on the object stored in
+;; the field.
 (define downcalls-during
   (term ((object
           (method parent ()
@@ -240,19 +242,19 @@
              (term [isParent])) ;; downcalls during construction.
 
 ;; Downcalls after construction
-;; This expression has a method "isParent" if the version of "test"
-;; in the parent executes (indicating downcalls are not supported),
-;; and a method "isChild" if the overriding version executes, which
-;; means that downcalls are supported.
 ;;
-;; This test attempts to make a downcall after construction is done,
-;; defining a method "test" in both the parent and child. The version
-;; in the parent assigns an object with an "isParent" method to the
-;; "downcall" field in the outer object, while the version in the
-;; child assigns one with "isChild". The "try" method in the parent
-;; calls test: if downcalls are supported, the child version of
-;; "test" runs. The expression calls "try" on the child object and
-;; measures the effect on the field.
+;; This expression has a method "isParent" if the version of "test" in the
+;; parent executes (indicating downcalls are not supported), and a method
+;; "isChild" if the overriding version executes, which means that downcalls are
+;; supported.
+;;
+;; This test attempts to make a downcall after construction is done, defining a
+;; method "test" in both the parent and child.  The version in the parent
+;; assigns an object with an "isParent" method to the "downcall" field in the
+;; outer object, while the version in the child assigns one with "isChild".
+;; The "try" method in the parent calls test: if downcalls are supported, the
+;; child version of "test" runs.  The expression calls "try" on the child
+;; object and measures the effect on the field.
 (define downcalls-after
   (term ((object
           (method parent ()
@@ -321,12 +323,13 @@
              (term [isChild]))
 
 ;; Action at a distance, downwards
-;; This expression has a method "distance" if action at a distance allows
-;; modifying the child by modifying the parent, no methods if it does not,
-;; and is stuck if no independent reference to the parent can exist.
 ;;
-;; This expression externally mutates a field in the parent object and
-;; reads that field through the child.
+;; This expression has a method "distance" if action at a distance allows
+;; modifying the child by modifying the parent, no methods if it does not, and
+;; is stuck if no independent reference to the parent can exist.
+;;
+;; This expression externally mutates a field in the parent object and reads
+;; that field through the child.
 (define distance-down
   (term (((object
            (def parent = (object
@@ -389,12 +392,13 @@
              (term stuck))
 
 ;; Action at a distance, upwards
-;; This expression has a method "distance" if action at a distance allows
-;; modifying the parent by modifying the child, no methods if it does not,
-;; and is stuck if no independent reference to the parent can exist.
 ;;
-;; This test assigns to an inherited field inside the child, and tests
-;; whether the value of the field in the parent has been updated also.
+;; This expression has a method "distance" if action at a distance allows
+;; modifying the parent by modifying the child, no methods if it does not, and
+;; is stuck if no independent reference to the parent can exist.
+;;
+;; This test assigns to an inherited field inside the child, and tests whether
+;; the value of the field in the parent has been updated also.
 (define distance-up
   (term (((object
            (def parent =
@@ -411,7 +415,7 @@
 
 (test-->>GF distance-up         ;; Forwarding shows action at a distance
             (term [distance]))  ;; from child to parent.
- 
+
 (test-->>GD distance-up         ;; Delegation shows action at a distance
             (term [distance]))  ;; from child to parent.
 
@@ -458,6 +462,7 @@
              (term stuck))
 
 ;; Multiple inheritance without custom syntax.
+;;
 ;; This expression succeeds if multiple inheritance is supported.
 (define multiple-inheritance
   (term ((object
@@ -491,15 +496,15 @@
              (term [from1 from2])) ;; concatenation allow multiple inheritance.
 
 ;; Inheriting from something inherited from a parent.
-;; This expression has methods "from2", "subparent", and "fromsubparent"
-;; if it is possible to inherit from something you have yourself obtained
-;; through inheritance, and gets stuck otherwise.
 ;;
-;; Method parent1 returns an object with an inheritable "subparent"
-;; method. The child object first inherits from parent1, and then tries
-;; to inherit from subparent. This is only permitted in the positional
-;; system, as in all others inheritance is resolved before it is possible
-;; to make a selfcall.
+;; This expression has methods "from2", "subparent", and "fromsubparent" if it
+;; is possible to inherit from something you have yourself obtained through
+;; inheritance, and gets stuck otherwise.
+;;
+;; Method parent1 returns an object with an inheritable "subparent" method.  The
+;; child object first inherits from parent1, and then tries to inherit from
+;; subparent.  This is only permitted in the positional system, as in all others
+;; inheritance is resolved before it is possible to make a selfcall.
 (define parent-inheritance
   (term ((object
           (method parent1 ()
