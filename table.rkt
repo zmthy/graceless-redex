@@ -71,40 +71,34 @@
                              [test-->>GF test-->>GMF]
                              [test-->>GD test-->>GMD]
                              [test-->>GC test-->>GMC]
-                             [test-->>GO test-->>GMO]
-                             )
+                             [test-->>GO test-->>GMO])
                   test-->>GMU
                   test-->>GMF
                   test-->>GMD
                   test-->>GMC
-                  test-->>GMO
-                  )
+                  test-->>GMO)
          (only-in (rename-in "transform-inheritance/test.rkt"
                              [test-->>GU test-->>GTU]
                              [test-->>GF test-->>GTF]
                              [test-->>GD test-->>GTD]
                              [test-->>GC test-->>GTC]
-                             [test-->>GO test-->>GTO]
-                             )
+                             [test-->>GO test-->>GTO])
                   test-->>GTU
                   test-->>GTF
                   test-->>GTD
                   test-->>GTC
-                  test-->>GTO
-                  )
+                  test-->>GTO)
          (only-in (rename-in "positional-inheritance/test.rkt"
                              [test-->>GU test-->>GPU]
                              [test-->>GF test-->>GPF]
                              [test-->>GD test-->>GPD]
                              [test-->>GC test-->>GPC]
-                             [test-->>GO test-->>GPO]
-                             )
+                             [test-->>GO test-->>GPO])
                   test-->>GPU
                   test-->>GPF
                   test-->>GPD
                   test-->>GPC
-                  test-->>GPO
-                  ))
+                  test-->>GPO))
 
 (provide (all-defined-out))
 
@@ -127,7 +121,7 @@
          registered)))
 
 (test-->>GO registration         ;; Forwarding, delegation, and concatenation
-           (term [x]))           ;; do not support registration.
+            (term [x]))          ;; do not support registration.
 
 (test-->>GI registration         ;; Merged and uniform identity do support
             (term [x worked]))   ;; registration.
@@ -142,13 +136,13 @@
              (term [x worked]))  ;; registration.
 
 (test-->>GMO registration        ;; Multiple forwarding, delegation, and
-           (term [x]))           ;; concatenation behave the same as single.
+             (term [x]))         ;; concatenation behave the same as single.
 
 (test-->>GTO registration        ;; Transform forwarding, delegation, and
-           (term [x]))           ;; concatenation behave the same as single.
+             (term [x]))         ;; concatenation behave the same as single.
 
 (test-->>GPO registration        ;; Positional forwarding, delegation, and
-           (term [x]))           ;; concatenation behave the same as single.
+             (term [x]))         ;; concatenation behave the same as single.
 
 ;; Preëxisting
 ;; This expression has methods "parent" and "child" if inheritance from
@@ -162,26 +156,26 @@
          (def child = (object
                        (inherits (parent)))))))
 
-(test-->>GO preexisting            ;; Forwarding, delegation, and concatenation
-            (term [parent child])) ;; support inheriting from existing objects.
+(test-->>GO preexisting             ;; Forwarding, delegation, and concatenation
+            (term [parent child]))  ;; support inheriting from existing objects.
 
-(test-->>GMO preexisting           ;; Multiple forwarding, delegation, and
-            (term [parent child])) ;; concatenation do too.
+(test-->>GMO preexisting            ;; Multiple forwarding, delegation, and
+             (term [parent child])) ;; concatenation do too.
 
-(test-->>GTO preexisting           ;; Transform forwarding, delegation, and
-            (term [parent child])) ;; concatenation do too.
+(test-->>GTO preexisting            ;; Transform forwarding, delegation, and
+             (term [parent child])) ;; concatenation do too.
 
-(test-->>GPO preexisting           ;; Positional forwarding, delegation, and
-            (term [parent child])) ;; concatenation do too.
+(test-->>GPO preexisting            ;; Positional forwarding, delegation, and
+             (term [parent child])) ;; concatenation do too.
 
 (test-->>GI preexisting   ;; All other models do not.
             (term stuck))
 
 (test-->>GMU preexisting
-            (term stuck))
+             (term stuck))
 
 (test-->>GTU preexisting
-            (term stuck))
+             (term stuck))
 
 (test-->>GPU preexisting
              (term stuck))
@@ -217,32 +211,32 @@
           (var downcall))
          downcall)))
 
-(test-->>GO downcalls-during   ;; Forwarding, delegation, and concatenation
-            (term [isParent])) ;; do not support downcalls during construction.
+(test-->>GO downcalls-during    ;; Forwarding, delegation, and concatenation
+            (term [isParent]))  ;; do not support downcalls during construction.
 
-(test-->>GM downcalls-during   ;; Merged identity does not support downcalls
-           (term [isParent]))  ;; during construction.
+(test-->>GM downcalls-during    ;; Merged identity does not support downcalls
+            (term [isParent]))  ;; during construction.
 
-(test-->>GU downcalls-during   ;; Uniform identity supports downcalls during
-            (term [isChild]))  ;; construction.
+(test-->>GU downcalls-during    ;; Uniform identity supports downcalls during
+            (term [isChild]))   ;; construction.
 
-(test-->>GMU downcalls-during  ;; Multiple uniform supports downcalls.
+(test-->>GMU downcalls-during   ;; Multiple uniform supports downcalls.
              (term [isChild]))
 
-(test-->>GTU downcalls-during  ;; Method transformation supports downcalls.
+(test-->>GTU downcalls-during   ;; Method transformation supports downcalls.
              (term [isChild]))
 
-(test-->>GPU downcalls-during  ;; Positional supports downcalls.
+(test-->>GPU downcalls-during   ;; Positional supports downcalls.
              (term [isChild]))
 
-(test-->>GMO downcalls-during  ;; Multiple F/D/C also do not support downcalls
-            (term [isParent])) ;; during construction.
+(test-->>GMO downcalls-during   ;; Multiple F/D/C also do not support downcalls
+             (term [isParent])) ;; during construction.
 
-(test-->>GTO downcalls-during  ;; Transform F/D/C also do not support downcalls
-            (term [isParent])) ;; during construction.
+(test-->>GTO downcalls-during   ;; Transform F/D/C also do not support downcalls
+             (term [isParent])) ;; during construction.
 
-(test-->>GPO downcalls-during  ;; Positional F/D/C also do not support downcalls
-            (term [isParent])) ;; during construction.
+(test-->>GPO downcalls-during   ;; Positional F/D/C also do not support
+             (term [isParent])) ;; downcalls during construction.
 
 ;; Downcalls after construction
 ;; This expression has a method "isParent" if the version of "test"
@@ -281,13 +275,13 @@
             (term [isParent])) ;; after construction.
 
 (test-->>GMF downcalls-after   ;; Multiple forwarding doesn't either.
-            (term [isParent]))
+             (term [isParent]))
 
 (test-->>GTF downcalls-after   ;; Transform forwarding doesn't either.
-            (term [isParent]))
+             (term [isParent]))
 
 (test-->>GPF downcalls-after   ;; Positional forwarding doesn't either.
-            (term [isParent]))
+             (term [isParent]))
 
 (test-->>GD downcalls-after    ;; All other models support downcalls after
             (term [isChild]))  ;; construction.
@@ -308,22 +302,22 @@
              (term [isChild]))
 
 (test-->>GMD downcalls-after
-            (term [isChild]))
+             (term [isChild]))
 
 (test-->>GMC downcalls-after
-            (term [isChild]))
+             (term [isChild]))
 
 (test-->>GTD downcalls-after
-            (term [isChild]))
+             (term [isChild]))
 
 (test-->>GTC downcalls-after
-            (term [isChild]))
+             (term [isChild]))
 
 (test-->>GPD downcalls-after
-            (term [isChild]))
+             (term [isChild]))
 
 (test-->>GPC downcalls-after
-            (term [isChild]))
+             (term [isChild]))
 
 ;; Action at a distance, downwards
 ;; This expression has a method "distance" if action at a distance allows
@@ -345,44 +339,44 @@
           child)
          x)))
 
-(test-->>GF distance-down      ;; Forwarding shows action at a distance
-            (term [distance])) ;; from parent to child.
+(test-->>GF distance-down       ;; Forwarding shows action at a distance
+            (term [distance]))  ;; from parent to child.
 
-(test-->>GD distance-down      ;; Delegation shows action at a distance
-            (term [distance])) ;; from parent to child.
+(test-->>GD distance-down       ;; Delegation shows action at a distance
+            (term [distance]))  ;; from parent to child.
 
-(test-->>GC distance-down      ;; Concatenation does not show action at
-            (term []))         ;; a distance downwards.
+(test-->>GC distance-down       ;; Concatenation does not show action at
+            (term []))          ;; a distance downwards.
 
-(test-->>GMF distance-down     ;; Multiple forwarding matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GMF distance-down      ;; Multiple forwarding matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GMD distance-down     ;; Multiple delegation matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GMD distance-down      ;; Multiple delegation matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GMC distance-down     ;; Multiple concatenation also does not
-            (term []))         ;; show action at a distance.
+(test-->>GMC distance-down      ;; Multiple concatenation also does not
+             (term []))         ;; show action at a distance.
 
-(test-->>GTF distance-down     ;; Transform forwarding matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GTF distance-down      ;; Transform forwarding matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GTD distance-down     ;; Transform delegation matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GTD distance-down      ;; Transform delegation matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GTC distance-down     ;; Transform concatenation also does not
-            (term []))         ;; show action at a distance.
+(test-->>GTC distance-down      ;; Transform concatenation also does not
+             (term []))         ;; show action at a distance.
 
-(test-->>GPF distance-down     ;; Transform forwarding matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GPF distance-down      ;; Transform forwarding matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GPD distance-down     ;; Transform delegation matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GPD distance-down      ;; Transform delegation matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GPC distance-down     ;; Positional concatenation also does not
-            (term []))         ;; show action at a distance.
+(test-->>GPC distance-down      ;; Positional concatenation also does not
+             (term []))         ;; show action at a distance.
 
-(test-->>GI distance-down      ;; All other models do not allow the
-            (term stuck))      ;; circumstance to arise in the first place.
+(test-->>GI distance-down       ;; All other models do not allow the
+            (term stuck))       ;; circumstance to arise in the first place.
 
 (test-->>GMU distance-down
              (term stuck))
@@ -414,50 +408,50 @@
           parent)
          x)))
 
-(test-->>GF distance-up        ;; Forwarding shows action at a distance
-            (term [distance])) ;; from child to parent.
+(test-->>GF distance-up         ;; Forwarding shows action at a distance
+            (term [distance]))  ;; from child to parent.
+ 
+(test-->>GD distance-up         ;; Delegation shows action at a distance
+            (term [distance]))  ;; from child to parent.
 
-(test-->>GD distance-up        ;; Delegation shows action at a distance
-            (term [distance])) ;; from child to parent.
+(test-->>GC distance-up         ;; Concatenation does not show action at
+            (term []))          ;; a distance from child to parent.
 
-(test-->>GC distance-up        ;; Concatenation does not show action at
-            (term []))         ;; a distance from child to parent.
+(test-->>GMF distance-up        ;; Multiple forwarding matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GMF distance-up       ;; Multiple forwarding matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GMD distance-up        ;; Multiple delegation matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GMD distance-up       ;; Multiple delegation matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GMC distance-up        ;; Multiple concatenation also does not
+             (term []))         ;; show action at a distance.
 
-(test-->>GMC distance-up       ;; Multiple concatenation also does not
-            (term []))         ;; show action at a distance.
+(test-->>GTF distance-up        ;; Transform forwarding matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GTF distance-up       ;; Transform forwarding matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GTD distance-up        ;; Transform delegation matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GTD distance-up       ;; Transform delegation matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GTC distance-up        ;; Transform concatenation also does not
+             (term []))         ;; show action at a distance.
 
-(test-->>GTC distance-up       ;; Transform concatenation also does not
-            (term []))         ;; show action at a distance.
+(test-->>GPF distance-up        ;; Positional forwarding matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GPF distance-up       ;; Positional forwarding matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GPD distance-up        ;; Positional delegation matches single with
+             (term [distance])) ;; action at a distance.
 
-(test-->>GPD distance-up       ;; Positional delegation matches single with
-            (term [distance])) ;; action at a distance.
+(test-->>GPC distance-up        ;; Positional concatenation also does not
+             (term []))         ;; show action at a distance.
 
-(test-->>GPC distance-up       ;; Positional concatenation also does not
-            (term []))         ;; show action at a distance.
-
-(test-->>GI distance-up        ;; All other models do not allow the
-            (term stuck))      ;; circumstance to arise in the first place.
+(test-->>GI distance-up         ;; All other models do not allow the
+            (term stuck))       ;; circumstance to arise in the first place.
 
 (test-->>GMU distance-up
              (term stuck))
 
 (test-->>GTU distance-up
-            (term stuck))
+             (term stuck))
 
 (test-->>GPU distance-up
              (term stuck))
@@ -478,22 +472,22 @@
          child)))
 
 (test-->>GMU multiple-inheritance  ;; Multiple uniform supports multiple
-            (term [from1 from2]))  ;; inheritance with optional "as" clauses.
+             (term [from1 from2])) ;; inheritance with optional "as" clauses.
 
 (test-->>GTU multiple-inheritance  ;; Transform supports multiple inheritance
              (term [from1 from2])) ;; with optional transform clauses.
 
 (test-->>GPU multiple-inheritance  ;; Positional supports multiple inheritance
-            (term [from1 from2]))  ;; with optional "as" clauses.
+             (term [from1 from2])) ;; with optional "as" clauses.
 
 (test-->>GMO multiple-inheritance  ;; Multiple forwarding, delegation, and
-            (term [from1 from2]))  ;; concatenation allow multiple inheritance.
+             (term [from1 from2])) ;; concatenation allow multiple inheritance.
 
 (test-->>GTO multiple-inheritance  ;; Transform forwarding, delegation, and
-            (term [from1 from2]))  ;; concatenation allow multiple inheritance.
+             (term [from1 from2])) ;; concatenation allow multiple inheritance.
 
 (test-->>GPO multiple-inheritance  ;; Positional forwarding, delegation, and
-            (term [from1 from2]))  ;; concatenation allow multiple inheritance.
+             (term [from1 from2])) ;; concatenation allow multiple inheritance.
 
 ;; Inheriting from something inherited from a parent.
 ;; This expression has methods "from2", "subparent", and "fromsubparent"
@@ -522,13 +516,13 @@
          child)))
 
 (test-->>GMU parent-inheritance ;; Multiple uniform does not allow inheriting
-            (term stuck))       ;; from something acquired from a parent.
+             (term stuck))      ;; from something acquired from a parent.
 
 (test-->>GTU parent-inheritance ;; Method transformation does not allow
              (term stuck))      ;; parent inheritance.
 
 (test-->>GPU parent-inheritance ;; Positional does.
-            (term [from2 subparent fromsubparent]))
+             (term [from2 subparent fromsubparent]))
 
 (test-->>GMO parent-inheritance ;; Multiple F/D/C does not allow
              (term stuck))      ;; parent inheritance.
@@ -536,7 +530,7 @@
 (test-->>GTO parent-inheritance ;; Transform F/D/C does not allow
              (term stuck))      ;; parent inheritance.
 
-(test-->>GPO parent-inheritance ;; Positional F/D/C enables
-             (term stuck))      ;; parent inheritance.
+(test-->>GPO parent-inheritance ;; Positional F/D/C does.
+             (term [from2 subparent fromsubparent]))
 
 (test-results)
