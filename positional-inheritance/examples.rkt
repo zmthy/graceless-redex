@@ -11,7 +11,7 @@
 
 (define empty-inherits
   (term (object
-         (inherits (object) as x))))
+         (inherits (object)))))
 
 (test-->>GU empty-inherits
             (term []))
@@ -21,7 +21,7 @@
          (method b () self)
          (inherits
           (object
-           (method a () self)) as x))))
+           (method a () self))))))
 
 (test-->>GU simple-inherits
             (term [a b]))
@@ -31,7 +31,7 @@
          (method m () self)
          (inherits
           (object
-           (method m () self)) as x))))
+           (method m () self))))))
 
 (test-->>GU simple-override
             (term [m]))
@@ -41,7 +41,7 @@
          (method x () self)
          (inherits
           (object
-           (var x)) as x))))
+           (var x))))))
 
 (test-->>GU field-override
             (term [x (x :=)]))
@@ -50,7 +50,7 @@
   (term (object
          (def x = self)
          (def y = (object
-                   (inherits (object) as y)
+                   (inherits (object))
                    (def z = (x)))))))
 
 (test-->>GU field-scoped
@@ -60,7 +60,7 @@
   (term (object
          (method m () self)
          (def x = (object
-                   (inherits (object) as y)
+                   (inherits (object))
                    (def x = (m)))))))
 
 (test-->>GU method-scoped
@@ -72,7 +72,7 @@
           (def y = ((object
                      (inherits
                       (object
-                       (def x = done)) as y)
+                       (def x = done)))
                      (def z = (x)))
                     z)))
          y)))
@@ -87,7 +87,7 @@
             ((object
               (inherits
                (object
-                (method m () done)) as x)
+                (method m () done)))
               (def y = (m)))
              y)))
          x)))
@@ -100,7 +100,7 @@
           (inherits
            (object
             (method m () (x))
-            (def x = done)) as y)
+            (def x = done)))
           (def x = self))
          m)))
 
@@ -114,7 +114,7 @@
              (var x := done)))
           (def b =
             (object
-             (inherits (a) as z)
+             (inherits (a))
              (def y = ((x :=) self))))
           (def c = ((a) x)))
          c)))
@@ -139,7 +139,7 @@
          (def x =
            (object
             (inherits
-             (object) as z)
+             (object))
             (def x = done)
             (def y = (x)))))))
 
@@ -152,7 +152,7 @@
            (object
             (inherits
              (object
-              (def x = done)) as z)
+              (def x = done)))
             (def y = (x)))))))
 
 (test-->>GU shadowed-delayed-indirect
@@ -161,7 +161,7 @@
 (define field-mutation
   (term ((object
           (inherits (object
-                     (var x)) as z)
+                     (var x)))
           (def y = ((x :=) done)))
          x)))
 
@@ -193,7 +193,7 @@
   (term (object
          (def x = (object))
          (def y = (object
-                   (inherits (x) as z))))))
+                   (inherits (x)))))))
 
 (test-->>GU not-fresh
             (term stuck))
@@ -203,15 +203,15 @@
          (method x (x) (x))
          (inherits
           (object
-           (def x = done)) as y))))
+           (def x = done))))))
 
 (test-->>GU override-field
             (term [x]))
 
 (define multiple-inherits
   (term (object
-         (inherits (object) as x)
-         (inherits (object) as y))))
+         (inherits (object))
+         (inherits (object)))))
 
 (test-->>GU multiple-inherits
             (term []))
@@ -219,9 +219,9 @@
 (define multiple-requests
   (term (object
          (inherits (object
-                    (method a () done)) as x)
+                    (method a () done)))
          (inherits (object
-                    (method b () done)) as y)
+                    (method b () done)))
          (a)
          (b))))
 
@@ -243,9 +243,9 @@
 (define second-super-method
   (term ((object
           (inherits (object
-                     (method m () self)) as x)
+                     (method m () self)))
           (inherits (object
-                     (method m () done)) as y))
+                     (method m () done))))
          m)))
 
 (test-->>GU second-super-method
@@ -259,7 +259,7 @@
           (inherits (object
                      (def a = self)) as x)
           (inherits (object
-                     (def b = self)) as y))
+                     (def b = self))))
          m)))
 
 (test-->>GU overridden-super-fields
@@ -270,7 +270,7 @@
           (method m ()
                   (object ((x :=) done)))
           (var x)
-          (inherits (m) as y))
+          (inherits (m)))
          x)))
 
 (test-->>GU inherited-substitution

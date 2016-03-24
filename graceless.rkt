@@ -90,11 +90,11 @@
   remove-shadows : s m ... -> (s ...)
   ;; If the name x appears in m, remove it.
   [(remove-shadows [_ / x] _ ... x _ ...) ()]
-  ;; If any name in the substitution appears in m, recurse without it.
-  [(remove-shadows [any ... m m_s ...] m_l ... m m_r ...)
-   (remove-shadows [any ... m_s ...] m_l ... m m_r ...)]
   ;; If the remaining name in the substitution appears in m, throw it away.
-  [(remove-shadows [(self n) / m] _ ... m _ ...) ()]
+  [(remove-shadows [any ... / m] _ ... m _ ...) ()]
+  ;; If any name in the substitution appears in m, recurse without it.
+  [(remove-shadows [any ... / m_sl ... m m_sr ...] m_l ... m m_r ...)
+   (remove-shadows [any ... / m_sl ... m_sr ...] m_l ... m m_r ...)]
   ;; Otherwise, retain the remaining substitution.
   [(remove-shadows s _ ...) (s)])
 

@@ -57,20 +57,20 @@
                     (method worked () done))))
          registered)))
 
-(test-->>GO registration         ; Forwarding, delegation, and concatenation
-           (term [x]))           ; do not support registration.
+(test-->>GO registration         ;; Forwarding, delegation, and concatenation
+           (term [x]))           ;; do not support registration.
 
-(test-->>GI registration         ; Merged and uniform identity do support
-            (term [x worked]))   ; registration.
+(test-->>GI registration         ;; Merged and uniform identity do support
+            (term [x worked]))   ;; registration.
 
-(test-->>GMU registration        ; Multiple uniform identity does support
-             (term [x worked]))  ; registration.
+(test-->>GMU registration        ;; Multiple uniform identity does support
+             (term [x worked]))  ;; registration.
 
-(test-->>GTU registration        ; Method transformation multiple inheritance
-             (term [x worked]))  ; does support registration.
+(test-->>GTU registration        ;; Method transformation multiple inheritance
+             (term [x worked]))  ;; does support registration.
 
-;; (test-->>GPU registration-as
-;;              (term [x worked]))
+(test-->>GPU registration
+             (term [x worked]))
 
 ;; Preëxisting
 ;; This expression has methods "parent" and "child" if inheritance from
@@ -84,10 +84,10 @@
          (def child = (object
                        (inherits (parent)))))))
 
-(test-->>GO preexisting            ; Forwarding, delegation, and concatenation
-            (term [parent child])) ; support inheriting from existing objects.
+(test-->>GO preexisting            ;; Forwarding, delegation, and concatenation
+            (term [parent child])) ;; support inheriting from existing objects.
 
-(test-->>GI preexisting   ; All other models do not.
+(test-->>GI preexisting   ;; All other models do not.
             (term stuck))
 
 (test-->>GMU preexisting
@@ -96,8 +96,8 @@
 (test-->>GTU preexisting
             (term stuck))
 
-;; (test-->>GPU preexisting
-;;              (term stuck))
+(test-->>GPU preexisting
+             (term stuck))
 
 ;; Downcalls during construction
 ;; This expression has a method "isParent" if the version of "test"
@@ -121,33 +121,32 @@
                             (object
                              (method isParent () done))))
                    (def x = (test))))
-          (def child =
-            (object
-             (inherits (parent))
-             (method test ()
-                     ((downcall :=)
-                      (object
-                       (method isChild () done))))))
+          (def child = (object
+                        (inherits (parent))
+                        (method test ()
+                                ((downcall :=)
+                                 (object
+                                  (method isChild () done))))))
           (var downcall))
          downcall)))
 
-(test-->>GO downcalls-during   ; Forwarding, delegation, and concatenation
-            (term [isParent])) ; do not support downcalls during construction.
+(test-->>GO downcalls-during   ;; Forwarding, delegation, and concatenation
+            (term [isParent])) ;; do not support downcalls during construction.
 
-(test-->>GM downcalls-during   ; Merged identity does not support downcalls
-           (term [isParent]))  ; during construction.
+(test-->>GM downcalls-during   ;; Merged identity does not support downcalls
+           (term [isParent]))  ;; during construction.
 
-(test-->>GU downcalls-during   ; Uniform identity supports downcalls during
-            (term [isChild]))  ; construction.
+(test-->>GU downcalls-during   ;; Uniform identity supports downcalls during
+            (term [isChild]))  ;; construction.
 
-(test-->>GMU downcalls-during  ; Multiple uniform supports downcalls.
+(test-->>GMU downcalls-during  ;; Multiple uniform supports downcalls.
              (term [isChild]))
 
-(test-->>GTU downcalls-during  ; Method transformation supports downcalls.
+(test-->>GTU downcalls-during  ;; Method transformation supports downcalls.
              (term [isChild]))
 
-;; (test-->>GPU downcalls-during
-;;              (term [isChild]))
+(test-->>GPU downcalls-during
+             (term [isChild]))
 
 ;; Downcalls after construction
 ;; This expression has a method "isParent" if the version of "test"
@@ -172,22 +171,21 @@
                             (object
                              (method isParent () done))))
                    (method try () (test))))
-          (def child =
-            (object
-             (inherits (parent))
-             (method test ()
-                     ((downcall :=)
-                      (object
-                       (method isChild () done))))))
+          (def child = (object
+                        (inherits (parent))
+                        (method test ()
+                                ((downcall :=)
+                                 (object
+                                  (method isChild () done))))))
           (def x = ((child) try))
           (var downcall))
          downcall)))
 
-(test-->>GF downcalls-after    ; Forwarding does not support downcalls even
-            (term [isParent])) ; after construction.
+(test-->>GF downcalls-after    ;; Forwarding does not support downcalls even
+            (term [isParent])) ;; after construction.
 
-(test-->>GD downcalls-after    ; All other models support downcalls after
-            (term [isChild]))  ; construction.
+(test-->>GD downcalls-after    ;; All other models support downcalls after
+            (term [isChild]))  ;; construction.
 
 (test-->>GC downcalls-after
             (term [isChild]))
@@ -201,8 +199,8 @@
 (test-->>GTU downcalls-after
              (term [isChild]))
 
-;; (test-->>GPU downcalls-after
-;;              (term [isChild]))
+(test-->>GPU downcalls-after
+             (term [isChild]))
 
 ;; Action at a distance, downwards
 ;; This expression has a method "distance" if action at a distance allows
@@ -213,31 +211,28 @@
 ;; reads that field through the child.
 (define distance-down
   (term (((object
-           (def parent =
-             (object
-              (var x := (object))))
-           (def child =
-             (object
-              (inherits (parent))))
-           (def y =
-             ((parent)
-              (x :=)
-              (object
-               (method distance () done)))))
+           (def parent = (object
+                          (var x := (object))))
+           (def child = (object
+                         (inherits (parent))))
+           (def y = ((parent)
+                     (x :=)
+                     (object
+                      (method distance () done)))))
           child)
          x)))
 
-(test-->>GF distance-down      ; Forwarding shows action at a distance
-            (term [distance])) ; from parent to child.
+(test-->>GF distance-down      ;; Forwarding shows action at a distance
+            (term [distance])) ;; from parent to child.
 
-(test-->>GD distance-down      ; Delegation shows action at a distance
-            (term [distance])) ; from parent to child.
+(test-->>GD distance-down      ;; Delegation shows action at a distance
+            (term [distance])) ;; from parent to child.
 
-(test-->>GC distance-down      ; Concatenation does not show action at
-            (term []))         ; a distance downwards.
+(test-->>GC distance-down      ;; Concatenation does not show action at
+            (term []))         ;; a distance downwards.
 
-(test-->>GI distance-down      ; All other models do not allow the
-            (term stuck))      ; circumstance to arise in the first place.
+(test-->>GI distance-down      ;; All other models do not allow the
+            (term stuck))      ;; circumstance to arise in the first place.
 
 (test-->>GMU distance-down
              (term stuck))
@@ -245,8 +240,8 @@
 (test-->>GTU distance-down
              (term stuck))
 
-;; (test-->>GPU distance-down
-;;              (term stuck))
+(test-->>GPU distance-down
+             (term stuck))
 
 ;; Action at a distance, upwards
 ;; This expression has a method "distance" if action at a distance allows
@@ -263,24 +258,23 @@
            (def child =
              (object
               (inherits (parent))
-              (def y =
-                ((x :=)
-                 (object
-                  (method distance () done)))))))
+              (def y = ((x :=)
+                        (object
+                         (method distance () done)))))))
           parent)
          x)))
 
-(test-->>GF distance-up        ; Forwarding shows action at a distance
-            (term [distance])) ; from child to parent.
+(test-->>GF distance-up        ;; Forwarding shows action at a distance
+            (term [distance])) ;; from child to parent.
 
-(test-->>GD distance-up        ; Delegation shows action at a distance
-            (term [distance])) ; from child to parent.
+(test-->>GD distance-up        ;; Delegation shows action at a distance
+            (term [distance])) ;; from child to parent.
 
-(test-->>GC distance-up        ; Concatenation does not show action at
-            (term []))         ; a distance from child to parent.
+(test-->>GC distance-up        ;; Concatenation does not show action at
+            (term []))         ;; a distance from child to parent.
 
-(test-->>GI distance-up        ; All other models do not allow the
-            (term stuck))      ; circumstance to arise in the first place.
+(test-->>GI distance-up        ;; All other models do not allow the
+            (term stuck))      ;; circumstance to arise in the first place.
 
 (test-->>GMU distance-up
              (term stuck))
@@ -288,10 +282,10 @@
 (test-->>GTU distance-up
             (term stuck))
 
-;; (test-->>GPU distance-up
-;;              (term stuck))
+(test-->>GPU distance-up
+             (term stuck))
 
-;; Multiple inheritance with the standard syntax.
+;; Multiple inheritance without custom syntax.
 ;; This expression succeeds if multiple inheritance is supported.
 (define multiple-inheritance
   (term ((object
@@ -301,41 +295,19 @@
           (method parent2 ()
                   (object
                    (method from2 () done)))
-          (def child =
-            (object
-             (inherits (parent1) as x)
-             (inherits (parent2) as y))))
+          (def child = (object
+                        (inherits (parent1))
+                        (inherits (parent2)))))
          child)))
 
-(test-->>GMU multiple-inheritance  ; Multiple uniform supports multiple
-            (term [from1 from2]))  ; inheritance with "as" clauses.
+(test-->>GMU multiple-inheritance  ;; Multiple uniform supports multiple
+            (term [from1 from2]))  ;; inheritance with optional "as" clauses.
 
-(test-->>GPU multiple-inheritance  ; Positional supports multiple inheritance
-            (term [from1 from2]))  ; with "as" clauses.
+(test-->>GTU multiple-inheritance  ;; Transform supports multiple inheritance
+             (term [from1 from2])) ;; with optional transform clauses.
 
-;; Multiple inheritance with no "as" for the sake of
-;; method transformation, and also working for the
-;; other MI models.
-(define transform-inheritance
-  (term ((object
-          (method parent1 ()
-                  (object
-                   (method from1 () done)))
-          (method parent2 ()
-                  (object
-                   (method from2 () done)))
-          (def child =
-            (object
-             (inherits (parent1))
-             (inherits (parent2)))))
-         child)))
-
-(test-->>GMU transform-inheritance  ; Multiple uniform supports multiple
-             (term [from1 from2]))  ; inheritance without "as".
-(test-->>GTU transform-inheritance  ; Method transformation supports multiple
-             (term [from1 from2]))  ; inheritance without "as".
-;(test-->>GPU transform-inheritance
-;             (term [from1 from2]))
+(test-->>GPU multiple-inheritance  ;; Positional supports multiple inheritance
+            (term [from1 from2]))  ;; with optional "as" clauses.
 
 ;; Inheriting from something inherited from a parent.
 ;; This expression has methods "from2", "subparent", and "fromsubparent"
@@ -353,48 +325,23 @@
                   (object
                    (method subparent ()
                            (object
-                             (method fromsubparent () done)
-                             )
-                           )))
+                             (method fromsubparent () done)))))
           (method parent2 ()
                   (object
                    (method from2 () done)))
-          (def child =
-            (object
-             (inherits (parent1) as x)
-             (inherits (subparent) as z)
-             (inherits (parent2) as y))))
+          (def child = (object
+                        (inherits (parent1))
+                        (inherits (subparent))
+                        (inherits (parent2)))))
          child)))
 
-(test-->>GMU parent-inheritance ; Multiple uniform does not allow inheriting
-            (term stuck))       ; from something acquired from a parent.
+(test-->>GMU parent-inheritance ;; Multiple uniform does not allow inheriting
+            (term stuck))       ;; from something acquired from a parent.
 
-(test-->>GPU parent-inheritance                     ; Positional does.
+(test-->>GTU parent-inheritance ;; Method transformation does not allow
+             (term stuck))      ;; parent inheritance.
+
+(test-->>GPU parent-inheritance ;; Positional does.
             (term [from2 subparent fromsubparent]))
-
-;; Parent inheritance, formatted for transformation.
-;; Because transformation has no "as" clauses, the
-;; above case is not well-formed under this model.
-(define parent-inheritance-trans
-  (term ((object
-          (method parent1 ()
-                  (object
-                   (method subparent ()
-                           (object
-                             (method fromsubparent () done)
-                             )
-                           )))
-          (method parent2 ()
-                  (object
-                   (method from2 () done)))
-          (def child =
-            (object
-             (inherits (parent1))
-             (inherits (subparent))
-             (inherits (parent2)))))
-         child)))
-
-(test-->>GTU parent-inheritance-trans  ; Method transformation does not allow
-            (term stuck))              ; parent inheritance.
 
 (test-results)

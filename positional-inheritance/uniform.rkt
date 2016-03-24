@@ -17,7 +17,7 @@
    #:domain p
    ;; Concatenate the body of the inherited objects into the inheriting object's
    ;; store, removing overrides, and update the following expression.
-   (--> [σ (in-hole E ((i ... inherits (object s_u ... M ... S ...) as x s ...)
+   (--> [σ (in-hole E ((i ... inherits (object s_u ... B ...) any ...)
                        e ...))]
         ;; The resulting object includes the super methods, the substituted
         ;; methods, and field accessors.
@@ -30,7 +30,11 @@
                          (subst s ...
                                 [i_p ... / super]
                                 [(self 0) / m ...]
-                                [ℓ as ℓ_d / x] e) ...))]
+                                s_s ... e) ...))]
+        ;; Split the body of the inherited object into methods and statements.
+        (where [(M ...) (S ...)] (split-body B ...))
+        ;; Fetch the optional name and substitutions of the inherits clause.
+        (where [(x ...) (s ...)] (optional-name any ...))
         ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))
         ;; Collect the names of the definitions in the inherited object.
@@ -47,8 +51,10 @@
         (where (M_f ... e_u ...) (body [S y] ...))
         ;; Fetch the actual self value from the bottom of the inherits contexts.
         (where ℓ_d ,(first (last (term (i ...)))))
+        ;; Construct the optional super substitution.
+        (where (s_s ...) ([ℓ as ℓ_d / x] ...))
         ;; Include the new super alias in the top of the inherits context.
-        (where (i_p ...) (add-substitution [ℓ as ℓ_d / x] i ...))
+        (where (i_p ...) (add-substitution (s_s ...) i ...))
         inherits/positional)))
 
 ;; Progress the program p by one step with the reduction relation -->GU.

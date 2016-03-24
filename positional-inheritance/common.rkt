@@ -10,10 +10,17 @@
 
 ;; The core syntax of Graceless extended with multiple inheritance.
 (define-extended-language Graceless-Inheritance Graceless
+  ;; Any element of an object expression body.
+  (B M
+     S)
+  ;; Inherits clauses are now statements.
   (S ....
+     (inherits e)
      (inherits e as x))
   (e ....
      abstract)
+  ;; An object can now have methods anywhere in its body.
+  (o (object B ...))
   ;; Super references are now permitted to be any name.
   (r ....
      x))
@@ -25,11 +32,15 @@
 ;; The Graceless runtime extended with multiple inheritance core and runtime
 ;; syntax.
 (define-extended-language GI GIU
+  ;; Inherits clauses are expressions at runtime when they are translated from
+  ;; statements.  Each variant has an optional name.
   (e ....
+     (super inherits e s ...)
      (super inherits e as x s ...)
+     (i ... inherits e s ...)
      (i ... inherits e as x s ...))
   ;; Substitutions are delayed in objects.
-  (o (object s ... M ... S ...))
+  (o (object s ... B ...))
   ;; Aliases are still receivers at runtime, but now we always have the
   ;; reference that will be aliasing.
   (r ....
@@ -40,7 +51,7 @@
   ;; We can't write a where clause on the evaluation context, so the inherits
   ;; context is included directly here, and we use EF to handle requests.
   (E ....
-     (i ... inherits E as x s ...))
+     (i ... inherits E any ...))
   ;; The context EF is used for anything which is not directly in an inherits
   ;; clause.  The complex contexts EG and the simple hole in EF are separated to
   ;; prevent a hole from appearing directly in an inherits clause of EF.
@@ -49,7 +60,7 @@
       (m v ... EF e ...)
       (EF e ...)
       (v x <- EF)
-      (i ... inherits EG as x s ...))
+      (i ... inherits EG any ...))
   (EF EG
       hole)
   ;; This separate context will be redefined by some languages to allow objects
@@ -89,29 +100,28 @@
 ;; substitution for self is incremented, as the object it refers to will be
 ;; further away inside the inner object.
 (define-metafunction GI
-  object-shadows : s (M ... S ...) -> (s ...)
+  object-shadows : s (B ...) -> (s ...)
   ;; Substitutions of self are incremented.
   [(object-shadows [ℓ / e] _) ([ℓ / (inc-self e)])]
   ;; Substitutions of super need not enter another object.
   [(object-shadows [_ ... / super] _) ()]
   ;; Substitutions to an alias are removed if a definition with the same name
   ;; appears in the object.
-  [(object-shadows [ℓ as ℓ_a / x] (x_i ... M ... S ...)) ()
-   (where (_ ... x _ ...) ,(append (term (x_i ...))
-                                   (term (names M ... S ...))))]
+  [(object-shadows [ℓ as ℓ_a / x] (B ...)) ()
+   (where (_ ... x _ ...) (names B ...))]
   ;; Otherwise the substitution is preserved.
   [(object-shadows [ℓ as ℓ_a / x] _) ([ℓ as ℓ_a / x])]
   ;; Otherwise collect the method names of the object, remove-shadows, and
   ;; increment if the substitution is to self.
-  [(object-shadows [e / m_s ...] (x ... M ... S ...))
-   (remove-shadows [(inc-self e) / m_s ...] x ... m_o ...)
-   (where (m_o ...) (names M ... S ...))])
+  [(object-shadows [e / m_s ...] (B ...))
+   (remove-shadows [(inc-self e) / m_s ...] m_o ...)
+   (where (m_o ...) (names B ...))])
 
 ;; Apply remove-object-shadows for the object o to each substitution s.
 (define-metafunction GI
-  all-object-shadows : s ... (M ... S ...) -> (s ...)
-  [(all-object-shadows s ... (M ... S ...))
-   ,(append-map (λ (s) (term (object-shadows ,s (M ... S ...))))
+  all-object-shadows : s ... (B ...) -> (s ...)
+  [(all-object-shadows s ... (B ...))
+   ,(append-map (λ (s) (term (object-shadows ,s (B ...))))
                 (term (s ...)))])
 
 ;; Determine whether the given thing appears in the substitutions s.
@@ -125,19 +135,21 @@
   subst : s ... e -> e
   ;; Substitutions are delayed by an object expression.  Any substitution which
   ;; will clearly be shadowed in the object is removed.
-  [(subst s ... (object s_o ... M ... S ...))
-   (object s_o ... s_p ... M ... S ...)
-   (where (s_p ...) (all-object-shadows s ... (M ... S ...)))]
+  [(subst s ... (object s_o ... B ...))
+   (object s_o ... s_p ... B ...)
+   (where (s_p ...) (all-object-shadows s ... (B ...)))]
   ;; Substitutions to an unprocessed inherits clause replace super with the
   ;; given context, process the clause's expression, and then delay the
   ;; remaining substitutions.
-  [(subst s_l ... [i ... / super] s_r ... (super inherits e as x s_i ...))
-   (i ... inherits (subst s_l ... s_r ... e) as x s_i ... s_p ...)
+  [(subst s_l ... [i ... / super] s_r ... (super inherits e any ...))
+   (i ... inherits (subst s_l ... s_r ... e) any ... s_p ...)
    (side-condition (term (not-in-subst super s_r ...)))
-   (where (s_p ...) (remove-all-shadows s_l ... s_r ... x))]
+   ;; Fetch the optional name on the inherits caluse.
+   (where ((x ...) _) (optional-name any ...))
+   (where (s_p ...) (remove-all-shadows s_l ... s_r ... x ...))]
   ;; Otherwise the clause is processed under all of the substitutions.
-  [(subst s ... (i ... inherits e as x s_i ...))
-   (i ... inherits (subst s ... e) as x s_i ... s_p ...)
+  [(subst s ... (i ... inherits e any ...))
+   (i ... inherits (subst s ... e) any ... s_p ...)
    (where (s_p ...) (remove-all-shadows s ... x))]
   ;; Continue the substitution into a request.
   [(subst s ... (r m e ...))
@@ -247,9 +259,10 @@
 ;; Collect all of the method names of the methods M and generated accessors of
 ;; fields in the statement list S.
 (define-metafunction GI
-  names : M ... S ... -> (m ...)
-  [(names M ... S ...)
-   ,(append (term (method-names M ...)) (term (stmt-method-names S ...)))])
+  names : B ... -> (m ...)
+  [(names B ...)
+   ,(append (term (method-names M ...)) (term (stmt-method-names S ...)))
+   (where [(M ...) (S ...)] (split-body B ...))])
 
 ;; Collect all of the method names in the object o, including those generated by
 ;; getter and setter methods of fields.
@@ -272,8 +285,8 @@
 (define-metafunction/extension graceless:body GI
   body : [S y] ... -> (M ... e ...)
   ;; Inherits clauses are replaced by their unsubstituted expression form.
-  [(body [(inherits e as x) _] [S y_r] ...)
-   (M ... (super inherits e as x) e_r ...)
+  [(body [(inherits e any ...) _] [S y_r] ...)
+   (M ... (super inherits e any ...) e_r ...)
    (where (M ... e_r ...) (body [S y_r] ...))])
 
 ;; Sequence a series of expressions into a single expression.
@@ -294,6 +307,18 @@
    (override M ... m_l ... m m_r ...)]
   [(override M M_i ... m ...) (M M_p ...)
    (where (M_p ...) (override M_i ... m ...))])
+
+;; Split an object body into methods and statements, preserving ordering.
+(define-metafunction GI
+  split-body : B ... -> [(M ...) (S ...)]
+  ;; Once there are no more body elements, return empty pairs.
+  [(split-body) [() ()]]
+  ;; If the next body element is a method, add it to the front.
+  [(split-body M B ...) [(M M_p ...) (S_p ...)]
+   (where [(M_p ...) (S_p ...)] (split-body B ...))]
+  ;; Otherwise add the statement to the front of the statement portion.
+  [(split-body S B ...) [(M_p ...) (S S_p ...)]
+   (where [(M_p ...) (S_p ...)] (split-body B ...))])
 
 ;; Update all of the objects in the inherits contexts.
 (define-metafunction GI
@@ -329,11 +354,22 @@
                                   ;; methods.
                                   [(self 0) / m_d ... m_u ...] M) ...))])
 
-;; Add a substitution s to the top of the inherits context i.
+;; Handle the optional name on an inherits clause, returning either an empty or
+;; singleton list for the name, and the remaining delayed substitutions.
 (define-metafunction GI
-  add-substitution : s i ... -> (i ...)
-  ;; Just slap it in there.
-  [(add-substitution s_n (ℓ M ... s ...) i ...) ((ℓ M ... s ... s_n) i ...)])
+  optional-name : any ... -> [(x ...) (s ...)]
+  ;; No name, return an empty list and the substitutions.
+  [(optional-name s ...) (() (s ...))]
+  ;; A name, return a singleton list and the substitutions.
+  [(optional-name _ x s ...) ((x) (s ...))])
+
+;; Add an optional substitution s to the top of the inherits context i.
+(define-metafunction GI
+  add-substitution : (s ...) i ... -> (i ...)
+  ;; If there's no substitution, don't do anything.
+  [(add-substitution () i ...) (i ...)]
+  ;; Otherwise, add it to the first context.
+  [(add-substitution (s_n) (ℓ M ... s ...) i ...) ((ℓ M ... s ... s_n) i ...)])
 
 ;; Partial small-step dynamic semantics of Graceless inheritance.  Must be
 ;; extended with rules for inherits clauses and object literals.  In order for
@@ -401,7 +437,7 @@
    ;; Allocate the object o, converting fields into assignments with local
    ;; requests substituted to the new object, and ultimately return the
    ;; resulting reference.
-   (--> [σ (in-hole EO (object s ... M ... S ...))]
+   (--> [σ (in-hole EO (object s ... B ...))]
         ;; This substitution is into the body of the object.  The use of self
         ;; and local requests in the method bodies will be handled when they are
         ;; requested.
@@ -411,6 +447,8 @@
                             [(ℓ M ... M_f ... s ...) / super]
                             [ℓ / (self 0)]
                             [(self 0) / m ...] (seq e ... (ref ℓ))))]
+        ;; Split the body into methods and statements.
+        (where [(M ...) (S ...)] (split-body B ...))
         ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))
         ;; The method names are used for substituting local requests, as well as
@@ -422,6 +460,8 @@
         ;; unnecessary fresh names for expressions as well).
         (fresh ((y ...) (S ...)))
         ;; Collect the field accessor methods and the resulting object body.
+        ;; The sugared inherits clauses are treated as normal expressions here,
+        ;; with a placeholder name which won't be used.
         (where (M_f ... e ...) (body [S y] ...))
         object)))
 
@@ -442,8 +482,8 @@
    #:domain p
    ;; A request directly in an inherits clause is only allowed to proceed if it
    ;; results in a fresh object.
-   (--> [σ (in-hole E (i ... inherits (v m v_a ...) as x s ...))]
-        [σ_p (in-hole E (i ... inherits e as x s ...))]
+   (--> [σ (in-hole E (i ... inherits (v m v_a ...) any ...))]
+        [σ_p (in-hole E (i ... inherits e any ...))]
         ;; We can't pattern match here, because the result could be either a
         ;; single object or an expression sequence.
         (where ([σ_p e])
