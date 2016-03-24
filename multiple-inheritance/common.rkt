@@ -59,14 +59,11 @@
   (s ....
      [ℓ as (self n) / x]))
 
-;; The languages without the freshness restriction redefine EF to be E.
+;; The languages without the freshness restriction redefine EF to be E, and Io
+;; to be an inherits to a value.
 (define-extended-language GO GI
+  (Io (inherits v any ...))
   (EF E))
-
-;; The languages that allow object expressions to proceed in inherits clauses
-;; redefine just EO to be E.
-(define-extended-language GM GI
-  (EO E))
 
 ;; Remove any names from the substitution s which are shadowed by the names m.
 ;; If the substitution still has names remaining, it is returned as the sole
@@ -455,6 +452,44 @@
         ;; Collect the field accessor methods and the resulting object body.
         (where (M_f ... e ...) (body [S y] ...))
         object)))
+
+;; Partial small-step dynamic semantics of Graceless inheritance, extended with
+;; simple object inheritance.  Must be extended with rules for object literals.
+(define -->GPI
+  (extend-reduction-relation
+   -->GP
+   GO
+   #:domain p
+   ;; Inherits concatenates the methods in the super object into the object
+   ;; constructor and returns the resulting concatenation.  The actual object
+   ;; reference will be built in the next step.
+   (--> [σ (in-hole E (object (inherits (ref ℓ) any ...) ...
+                              s_d ... M ... S ...))]
+        ;; The resulting object includes the super methods, the substituted
+        ;; methods, and substituted fields.
+        [σ (in-hole E (object M_up ...
+                              (subst-method s ... s_u ... M) ...
+                              (subst-stmt s ... s_u ... S) ...))]
+        ;; Fetch the optional names of the inherits clauses.
+        (where ((x ...) ...) ((optional-name any ...) ...))
+        ;; Only execute this rule if there are inherits clauses to process.
+        (side-condition (pair? (term ((x ...) ...))))
+        ;; Build super substitutions by pairing the locations with the names.
+        (where (s_u ...) (optional-subst ℓ ... (x ...) ...))
+        ;; Collect the names of the definitions in the inheriting object.
+        (where (m ...) (names M ... S ...))
+        ;; Lookup the super objects.
+        (where ((object F ... M_p ...) ...) ((lookup σ ℓ) ...))
+        ;; Concatenate all of the inherited methods.
+        (where (M_c ...) (concat (M_p ...) ...))
+        ;; Resolve conflicts between inherited methods.
+        (where (M_u ...) (join M_c ...))
+        ;; Remove from the inherited methods any method which is overridden by a
+        ;; definition in the inheriting object.
+        (where (M_up ...) (override M_u ... m ...))
+        ;; Remove the shadowed substitutions before applying them to the body.
+        (where (s ...) (all-object-shadows s_d ... (M_up ...)))
+        inherits)))
 
 ;; Determine if the given expression is a fresh object expression, or is a
 ;; sequence of expressions which ends in an object expression.

@@ -1,9 +1,20 @@
 #lang racket
 
 (require redex
+         "forwarding.rkt"
+         "delegation.rkt"
+         "concatenation.rkt"
          "uniform.rkt")
 
-(provide test-->>GU
+(provide test-->>GF
+         test-->>GD
+         test-->>GC
+         test-->>GO
+         test-->>GU
+         test-->>GA
+         (all-from-out "forwarding.rkt")
+         (all-from-out "delegation.rkt")
+         (all-from-out "concatenation.rkt")
          (all-from-out "uniform.rkt"))
 
 (define-metafunction GI
@@ -46,5 +57,23 @@
    (program t)
    r))
 
+(define (test-->>GF t r)
+  (test-->>G -->GF t r))
+
+(define (test-->>GD t r)
+  (test-->>G -->GD t r))
+
+(define (test-->>GC t r)
+  (test-->>G -->GC t r))
+
+(define (test-->>GO t r)
+  (test-->>GF t r)
+  (test-->>GD t r)
+  (test-->>GC t r))
+
 (define (test-->>GU t r)
   (test-->>G -->GU t r))
+
+(define (test-->>GA t r)
+  (test-->>GO t r)
+  (test-->>GU t r))

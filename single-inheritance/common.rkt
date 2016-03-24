@@ -385,7 +385,7 @@
                                             [ℓ as (self 0) / (super 0)] M) ...
                               (subst-stmt s ...
                                           [ℓ as (self 0) / (super 0)] S) ...))]
-        ;; Lookup the super object, fetching both its methods and method names.
+        ;; Lookup the super object.
         (where (object F ... M_u ...) (lookup σ ℓ))
         ;; Collect the names of the definitions in the inheriting object.
         (where (m ...) (names M ... S ...))
