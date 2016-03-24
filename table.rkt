@@ -47,7 +47,12 @@
 ;;    GTC  Method transformation with concatenation
 ;;    GTO  All three of the above
 ;;
-;; The G[MT][FDCO] models exactly match the behaviours of the
+;;    GPF  Positional forwarding
+;;    GPD  Positional delegation
+;;    GPC  Positional concatenation
+;;    GPO  All three of the above
+;;
+;; The G[MTP][FDCO] models exactly match the behaviours of the
 ;; corresponding base model, with the addition of multiple
 ;; inheritance of some kind. The tests below repeat the
 ;; conditions for each model to demonstrate this.
@@ -88,8 +93,18 @@
                   test-->>GTO
                   )
          (only-in (rename-in "positional-inheritance/test.rkt"
-                             [test-->>GU test-->>GPU])
-                  test-->>GPU))
+                             [test-->>GU test-->>GPU]
+                             [test-->>GF test-->>GPF]
+                             [test-->>GD test-->>GPD]
+                             [test-->>GC test-->>GPC]
+                             [test-->>GO test-->>GPO]
+                             )
+                  test-->>GPU
+                  test-->>GPF
+                  test-->>GPD
+                  test-->>GPC
+                  test-->>GPO
+                  ))
 
 (provide (all-defined-out))
 
@@ -132,6 +147,9 @@
 (test-->>GTO registration        ;; Transform forwarding, delegation, and
            (term [x]))           ;; concatenation behave the same as single.
 
+(test-->>GPO registration        ;; Positional forwarding, delegation, and
+           (term [x]))           ;; concatenation behave the same as single.
+
 ;; Preëxisting
 ;; This expression has methods "parent" and "child" if inheritance from
 ;; preëxisting objects is supported, and gets stuck otherwise.
@@ -151,6 +169,9 @@
             (term [parent child])) ;; concatenation do too.
 
 (test-->>GTO preexisting           ;; Transform forwarding, delegation, and
+            (term [parent child])) ;; concatenation do too.
+
+(test-->>GPO preexisting           ;; Positional forwarding, delegation, and
             (term [parent child])) ;; concatenation do too.
 
 (test-->>GI preexisting   ;; All other models do not.
@@ -220,6 +241,9 @@
 (test-->>GTO downcalls-during  ;; Transform F/D/C also do not support downcalls
             (term [isParent])) ;; during construction.
 
+(test-->>GPO downcalls-during  ;; Positional F/D/C also do not support downcalls
+            (term [isParent])) ;; during construction.
+
 ;; Downcalls after construction
 ;; This expression has a method "isParent" if the version of "test"
 ;; in the parent executes (indicating downcalls are not supported),
@@ -262,6 +286,9 @@
 (test-->>GTF downcalls-after   ;; Transform forwarding doesn't either.
             (term [isParent]))
 
+(test-->>GPF downcalls-after   ;; Positional forwarding doesn't either.
+            (term [isParent]))
+
 (test-->>GD downcalls-after    ;; All other models support downcalls after
             (term [isChild]))  ;; construction.
 
@@ -290,6 +317,12 @@
             (term [isChild]))
 
 (test-->>GTC downcalls-after
+            (term [isChild]))
+
+(test-->>GPD downcalls-after
+            (term [isChild]))
+
+(test-->>GPC downcalls-after
             (term [isChild]))
 
 ;; Action at a distance, downwards
@@ -337,6 +370,15 @@
             (term [distance])) ;; action at a distance.
 
 (test-->>GTC distance-down     ;; Transform concatenation also does not
+            (term []))         ;; show action at a distance.
+
+(test-->>GPF distance-down     ;; Transform forwarding matches single with
+            (term [distance])) ;; action at a distance.
+
+(test-->>GPD distance-down     ;; Transform delegation matches single with
+            (term [distance])) ;; action at a distance.
+
+(test-->>GPC distance-down     ;; Positional concatenation also does not
             (term []))         ;; show action at a distance.
 
 (test-->>GI distance-down      ;; All other models do not allow the
@@ -399,6 +441,15 @@
 (test-->>GTC distance-up       ;; Transform concatenation also does not
             (term []))         ;; show action at a distance.
 
+(test-->>GPF distance-up       ;; Positional forwarding matches single with
+            (term [distance])) ;; action at a distance.
+
+(test-->>GPD distance-up       ;; Positional delegation matches single with
+            (term [distance])) ;; action at a distance.
+
+(test-->>GPC distance-up       ;; Positional concatenation also does not
+            (term []))         ;; show action at a distance.
+
 (test-->>GI distance-up        ;; All other models do not allow the
             (term stuck))      ;; circumstance to arise in the first place.
 
@@ -441,6 +492,9 @@
 (test-->>GTO multiple-inheritance  ;; Transform forwarding, delegation, and
             (term [from1 from2]))  ;; concatenation allow multiple inheritance.
 
+(test-->>GPO multiple-inheritance  ;; Positional forwarding, delegation, and
+            (term [from1 from2]))  ;; concatenation allow multiple inheritance.
+
 ;; Inheriting from something inherited from a parent.
 ;; This expression has methods "from2", "subparent", and "fromsubparent"
 ;; if it is possible to inherit from something you have yourself obtained
@@ -480,6 +534,9 @@
              (term stuck))      ;; parent inheritance.
 
 (test-->>GTO parent-inheritance ;; Transform F/D/C does not allow
+             (term stuck))      ;; parent inheritance.
+
+(test-->>GPO parent-inheritance ;; Positional F/D/C enables
              (term stuck))      ;; parent inheritance.
 
 (test-results)
