@@ -8,6 +8,7 @@
 ;; each model evaluates the expression and verifies that a
 ;; particular result is obtained. The possible results used in
 ;; these tests are:
+;; - uninitialised, indicating an uninitialised field was accessed.
 ;; - stuck, indicating that the evaluation could not proceed.
 ;; - [method names here], indicating that the resulting object
 ;;   has exactly the methods listed.
