@@ -17,6 +17,10 @@
 ;; Comments with each defined term, and next to each test call,
 ;; describe the expected behaviour in each condition. Models with
 ;; different behaviours are given different expected return values.
+;;
+;; We do not test for the -first column, as all our models are
+;; objects-first, for Overload, as it is by construction, or for
+;; Stable, because it is determined by the other columns.
 
 (require redex
          (only-in "single-inheritance/test.rkt"
@@ -69,8 +73,8 @@
 (test-->>GTU registration        ;; Method transformation multiple inheritance
              (term [x worked]))  ;; does support registration.
 
-(test-->>GPU registration
-             (term [x worked]))
+(test-->>GPU registration        ;; Positional inheritance does support
+             (term [x worked]))  ;; registration.
 
 ;; Preëxisting
 ;; This expression has methods "parent" and "child" if inheritance from
@@ -145,7 +149,7 @@
 (test-->>GTU downcalls-during  ;; Method transformation supports downcalls.
              (term [isChild]))
 
-(test-->>GPU downcalls-during
+(test-->>GPU downcalls-during  ;; Positional supports downcalls.
              (term [isChild]))
 
 ;; Downcalls after construction
