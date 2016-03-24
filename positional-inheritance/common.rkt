@@ -63,9 +63,6 @@
       (i ... inherits EG any ...))
   (EF EG
       hole)
-  ;; This separate context will be redefined by some languages to allow objects
-  ;; to be resolved normally in an inherits clause.
-  (EO EF)
   (s ....
      [ℓ as ℓ / x]
      [i ... / super])
@@ -75,11 +72,6 @@
 ;; The languages without the freshness restriction redefine EF to be E.
 (define-extended-language GO GI
   (EF E))
-
-;; The languages that allow object expressions to proceed in inherits clauses
-;; redefine just EO to be E.
-(define-extended-language GM GI
-  (EO E))
 
 ;; Remove any names from the substitution s which are shadowed by the names m.
 ;; If the substitution still has names remaining, it is returned as the sole
@@ -437,13 +429,13 @@
    ;; Allocate the object o, converting fields into assignments with local
    ;; requests substituted to the new object, and ultimately return the
    ;; resulting reference.
-   (--> [σ (in-hole EO (object s ... B ...))]
+   (--> [σ (in-hole EF (object s ... B ...))]
         ;; This substitution is into the body of the object.  The use of self
         ;; and local requests in the method bodies will be handled when they are
         ;; requested.
         [(store σ (object (subst-method s ...
                                         [(self 0) / m ...] M) ... M_f ...))
-         (in-hole EO (subst s ...
+         (in-hole EF (subst s ...
                             [(ℓ M ... M_f ... s ...) / super]
                             [ℓ / (self 0)]
                             [(self 0) / m ...] (seq e ... (ref ℓ))))]
@@ -464,6 +456,39 @@
         ;; with a placeholder name which won't be used.
         (where (M_f ... e ...) (body [S y] ...))
         object)))
+
+;; Partial small-step dynamic semantics of Graceless inheritance, extended with
+;; positional object inheritance. Must be extended with rules for object
+;; literals.
+(define -->GPI
+  (extend-reduction-relation
+   -->GP
+   GO
+   #:domain p
+   ;; Concatenate the body of the inherited objects into the inheriting object's
+   ;; store, removing overrides, and update the following expression.  Note that
+   ;; under object inheritance, there can only ever be one inherits context.
+   (--> [σ (in-hole E ((i inherits (ref ℓ) any ...) e ...))]
+        ;; Update the self object, and perform the substitutions into the
+        ;; remaining body.
+        [(update σ M ... i_p)
+         (in-hole E (seq (subst s ...
+                                [i_p / super]
+                                [(self 0) / m ...]
+                                s_s ... e) ...))]
+        ;; Fetch the optional name and substitutions of the inherits clause.
+        (where [(x ...) (s ...)] (optional-name any ...))
+        ;; Lookup the super object.
+        (where (object F ... M ...) (lookup σ ℓ))
+        ;; Collect the names of the definitions in the inherited object.
+        (where (m ...) (names M ...))
+        ;; Fetch the actual self value from the bottom of the inherits contexts.
+        (where ℓ_d ,(first (term i)))
+        ;; Construct the optional super substitution.
+        (where (s_s ...) ([ℓ as ℓ_d / x] ...))
+        ;; Include the new super alias in the top of the inherits context.
+        (where (i_p) (add-substitution (s_s ...) i))
+        inherits/positional)))
 
 ;; Determine if the given expression is a fresh object expression, or is a
 ;; sequence of expressions which ends in an object expression.
