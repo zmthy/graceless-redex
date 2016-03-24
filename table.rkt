@@ -21,6 +21,26 @@
 ;; We do not test for the -first column, as all our models are
 ;; objects-first, for Overload, as it is by construction, or for
 ;; Stable, because it is determined by the other columns.
+;;
+;; The models are represented by two- or three-character codes
+;; in the names of the "test-->>xxx" functions:
+;;    GF   Forwarding
+;;    GD   Delegation
+;;    GC   Concatenation
+;;    GO   All of the above
+;;
+;;    GM   Merged identity
+;;    GU   Uniform identity
+;;    GI   Both of the above
+;;
+;;    GMU  Multiple uniform
+;;    GTU  Method transformation (multiple)
+;;    GPU  Positional inheritance (multiple)
+;;
+;;    GMF  Multiple forwarding
+;;    GMD  Multiple delegation
+;;    GMC  Multiple concatenation
+;;    GMO  All three of the above
 
 (require redex
          (only-in "single-inheritance/test.rkt"
@@ -32,8 +52,18 @@
                   test-->>GU
                   test-->>GI)
          (only-in (rename-in "multiple-inheritance/test.rkt"
-                             [test-->>GU test-->>GMU])
-                  test-->>GMU)
+                             [test-->>GU test-->>GMU]
+                             [test-->>GF test-->>GMF]
+                             [test-->>GD test-->>GMD]
+                             [test-->>GC test-->>GMC]
+                             [test-->>GO test-->>GMO]
+                             )
+                  test-->>GMU
+                  test-->>GMF
+                  test-->>GMD
+                  test-->>GMC
+                  test-->>GMO
+                  )
          (only-in (rename-in "transform-inheritance/test.rkt"
                              [test-->>GU test-->>GTU])
                   test-->>GTU)
@@ -76,6 +106,9 @@
 (test-->>GPU registration        ;; Positional inheritance does support
              (term [x worked]))  ;; registration.
 
+(test-->>GMO registration        ;; Multiple forwarding, delegation, and
+           (term [x]))           ;; concatenation behave the same as single.
+
 ;; Preëxisting
 ;; This expression has methods "parent" and "child" if inheritance from
 ;; preëxisting objects is supported, and gets stuck otherwise.
@@ -90,6 +123,9 @@
 
 (test-->>GO preexisting            ;; Forwarding, delegation, and concatenation
             (term [parent child])) ;; support inheriting from existing objects.
+
+(test-->>GMO preexisting           ;; Multiple forwarding, delegation, and
+            (term [parent child])) ;; concatenation do too.
 
 (test-->>GI preexisting   ;; All other models do not.
             (term stuck))
@@ -152,6 +188,9 @@
 (test-->>GPU downcalls-during  ;; Positional supports downcalls.
              (term [isChild]))
 
+(test-->>GMO downcalls-during  ;; Multiple F/D/C also do not support downcalls
+            (term [isParent])) ;; during construction.
+
 ;; Downcalls after construction
 ;; This expression has a method "isParent" if the version of "test"
 ;; in the parent executes (indicating downcalls are not supported),
@@ -188,6 +227,9 @@
 (test-->>GF downcalls-after    ;; Forwarding does not support downcalls even
             (term [isParent])) ;; after construction.
 
+(test-->>GMF downcalls-after   ;; Multiple forwarding doesn't either.
+            (term [isParent]))
+
 (test-->>GD downcalls-after    ;; All other models support downcalls after
             (term [isChild]))  ;; construction.
 
@@ -205,6 +247,12 @@
 
 (test-->>GPU downcalls-after
              (term [isChild]))
+
+(test-->>GMD downcalls-after
+            (term [isChild]))
+
+(test-->>GMC downcalls-after
+            (term [isChild]))
 
 ;; Action at a distance, downwards
 ;; This expression has a method "distance" if action at a distance allows
@@ -234,6 +282,15 @@
 
 (test-->>GC distance-down      ;; Concatenation does not show action at
             (term []))         ;; a distance downwards.
+
+(test-->>GMF distance-down     ;; Multiple forwarding matches single with
+            (term [distance])) ;; action at a distance.
+
+(test-->>GMD distance-down     ;; Multiple delegation matches single with
+            (term [distance])) ;; action at a distance.
+
+(test-->>GMC distance-down     ;; Multiple concatenation also does not
+            (term []))         ;; show action at a distance.
 
 (test-->>GI distance-down      ;; All other models do not allow the
             (term stuck))      ;; circumstance to arise in the first place.
@@ -277,6 +334,15 @@
 (test-->>GC distance-up        ;; Concatenation does not show action at
             (term []))         ;; a distance from child to parent.
 
+(test-->>GMF distance-up       ;; Multiple forwarding matches single with
+            (term [distance])) ;; action at a distance.
+
+(test-->>GMD distance-up       ;; Multiple delegation matches single with
+            (term [distance])) ;; action at a distance.
+
+(test-->>GMC distance-up       ;; Multiple concatenation also does not
+            (term []))         ;; show action at a distance.
+
 (test-->>GI distance-up        ;; All other models do not allow the
             (term stuck))      ;; circumstance to arise in the first place.
 
@@ -313,6 +379,9 @@
 (test-->>GPU multiple-inheritance  ;; Positional supports multiple inheritance
             (term [from1 from2]))  ;; with optional "as" clauses.
 
+(test-->>GMO multiple-inheritance  ;; Multiple forwarding, delegation, and
+            (term [from1 from2]))  ;; concatenation allows multiple inheritance.
+
 ;; Inheriting from something inherited from a parent.
 ;; This expression has methods "from2", "subparent", and "fromsubparent"
 ;; if it is possible to inherit from something you have yourself obtained
@@ -347,5 +416,8 @@
 
 (test-->>GPU parent-inheritance ;; Positional does.
             (term [from2 subparent fromsubparent]))
+
+(test-->>GMO parent-inheritance ;; Multiple F/D/C does not allow
+             (term stuck))      ;; parent inheritance.
 
 (test-results)
