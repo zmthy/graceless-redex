@@ -23,7 +23,8 @@
         ;; methods, and field accessors.
         [(update (store σ (object M_u ... M_f ...))
                  M_u ... M_f ... i_p ...)
-         (in-hole E (seq (subst [ℓ_d / (self 0)]
+         (in-hole E (seq (subst s_u ...
+                                [ℓ_d / (self 0)]
                                 [(ℓ M ... M_f ... s_u ...) i_p ... / super]
                                 [(self 0) / m ...] e_u) ...
                          (subst s ...

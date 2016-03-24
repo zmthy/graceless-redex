@@ -265,4 +265,15 @@
 (test-->>GU overridden-super-fields
             (term [a b m]))
 
+(define inherited-substitution
+  (term ((object
+          (method m ()
+                  (object ((x :=) done)))
+          (var x)
+          (inherits (m) as y))
+         x)))
+
+(test-->>GU inherited-substitution
+            (term done))
+
 (test-results)
