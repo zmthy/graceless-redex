@@ -6,9 +6,6 @@
 (provide (all-defined-out)
          (all-from-out "test.rkt"))
 
-;; Test if expressions can cause a Racket error.
-(redex-check Graceless e (eval-->G (term e)))
-
 (define simple-object
   (term (object)))
 

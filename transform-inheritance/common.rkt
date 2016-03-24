@@ -47,19 +47,13 @@
       (v x <- EF)
       (object Io ... (inherits EG any ...) I ... M ... S ...))
   (EF EG
-      hole)
-  ;; This separate context will be redefined by some languages to allow objects
-  ;; to be resolved normally in an inherits clause.
-  (EO EF))
+      hole))
 
-;; The languages without the freshness restriction redefine EF to be E.
+;; The languages without the freshness restriction redefine EF to be E, and Io
+;; to be an inherits to a value.
 (define-extended-language GO GI
+  (Io (inherits v any ...))
   (EF E))
-
-;; The languages that allow object expressions to proceed in inherits clauses
-;; redefine just EO to be E.
-(define-extended-language GM GI
-  (EO E))
 
 ;; Remove any names from the substitution s which are shadowed by the names m.
 ;; If the substitution still has names remaining, it is returned as the sole
@@ -434,12 +428,12 @@
    ;; Allocate the object o, converting fields into assignments with local
    ;; requests substituted to the new object, and ultimately return the
    ;; resulting reference.
-   (--> [σ (in-hole EO (object M ... S ...))]
+   (--> [σ (in-hole EF (object M ... S ...))]
         ;; This substitution is into the body of the object.  The use of self
         ;; and local requests in the method bodies will be handled when they are
         ;; requested.
         [(store σ (object (subst-method [(self 0) / m ...] M) ... M_f ...))
-         (in-hole EO (subst [ℓ / (self 0)]
+         (in-hole EF (subst [ℓ / (self 0)]
                             [(self 0) / m ...] (seq e ... (ref ℓ))))]
         ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))
@@ -454,6 +448,46 @@
         ;; Collect the field accessor methods and the resulting object body.
         (where (M_f ... e ...) (body [S y] ...))
         object)))
+
+;; Partial small-step dynamic semantics of Graceless inheritance, extended with
+;; simple object inheritance.  Must be extended with rules for object literals.
+(define -->GPI
+  (extend-reduction-relation
+   -->GP
+   GO
+   #:domain p
+   ;; Inherits concatenates the methods in the super object into the object
+   ;; constructor and returns the resulting concatenation.  The actual object
+   ;; reference will be built in the next step.
+   (--> [σ (in-hole E (object (inherits (ref ℓ)
+                                        alias ... (m_a as m_ap) ...
+                                        exclude ... m_e ...) ...
+                              s_d ... M ... S ...))]
+        ;; The resulting object includes the super methods, the substituted
+        ;; methods, and substituted fields.
+        [σ (in-hole E (object M_up ...
+                              (subst-method s ... M) ...
+                              (subst-stmt s ... S) ...))]
+        ;; Only execute this rule if there are inherits clauses to process.
+        (side-condition (pair? (term ((m_e ...) ...))))
+        ;; Collect the names of the definitions in the inheriting object.
+        (where (m ...) (names M ... S ...))
+        ;; Lookup the super objects.
+        (where ((object F ... M_p ...) ...) ((lookup σ ℓ) ...))
+        ;; Run the aliases on the methods from each inherited object.
+        (where ((M_a ...) ...) ((aliases (m_a as m_ap) ... M_p ...) ...))
+        ;; Run the excludes on the result of the aliases.
+        (where ((M_e ...) ...) ((excludes m_e ... M_a ...) ...))
+        ;; Concatenate the result of all the excludes.
+        (where (M_c ...) (concat (M_e ...) ...))
+        ;; Resolve conflicts between inherited methods.
+        (where (M_u ...) (join M_c ...))
+        ;; Remove from the inherited methods any method which is overridden by a
+        ;; definition in the inheriting object.
+        (where (M_up ...) (override M_u ... m ...))
+        ;; Remove the shadowed substitutions before applying them to the body.
+        (where (s ...) (all-object-shadows s_d ... (M_up ...)))
+        inherits)))
 
 ;; Determine if the given expression is a fresh object expression, or is a
 ;; sequence of expressions which ends in an object expression.

@@ -18,28 +18,30 @@
    ;; Inherits concatenates the methods in the super object into the object
    ;; constructor and returns the resulting concatenation.  The actual object
    ;; reference will be built in the next step.
-   (--> [σ (in-hole E (object (inherits (ref ℓ) any ...) ...
+   (--> [σ (in-hole E (object (inherits (ref ℓ)
+                                        alias ... (m_a as m_ap) ...
+                                        exclude ... m_e ...) ...
                               s_d ... M ... S ...))]
         ;; The resulting object includes the super methods, the substituted
         ;; methods, and substituted fields.
         [σ (in-hole E (object M_up ...
-                              (subst-method s ... s_u ... M) ...
+                              (subst-method s ... M) ...
                               (self x_c <- v_c) ...
-                              (subst-stmt s ... s_u ... S) ...))]
-        ;; Fetch the optional names of the inherits clauses.
-        (where ((x ...) ...) ((optional-name any ...) ...))
+                              (subst-stmt s ... S) ...))]
         ;; Only execute this rule if there are inherits clauses to process.
-        (side-condition (pair? (term ((x ...) ...))))
-        ;; Build super substitutions by pairing the locations with the names.
-        (where (s_u ...) (optional-subst ℓ ... (x ...) ...))
+        (side-condition (pair? (term ((m_e ...) ...))))
         ;; Collect the names of the definitions in the inheriting object.
         (where (m ...) (names M ... S ...))
         ;; Lookup the super objects.
-        (where ((object [x_f v] ... M_p ...) ...) ((lookup σ ℓ) ...))
+        (where ((object [x v] ... M_p ...) ...) ((lookup σ ℓ) ...))
         ;; Concatenate the fields into a single list.
-        (where ([x_c v_c] ...) (concat ([x_f v] ...) ...))
-        ;; Concatenate all of the inherited methods.
-        (where (M_c ...) (concat (M_p ...) ...))
+        (where ([x_c v_c] ...) (concat ([x v] ...) ...))
+        ;; Run the aliases on the methods from each inherited object.
+        (where ((M_a ...) ...) ((aliases (m_a as m_ap) ... M_p ...) ...))
+        ;; Run the excludes on the result of the aliases.
+        (where ((M_e ...) ...) ((excludes m_e ... M_a ...) ...))
+        ;; Concatenate the result of all the excludes.
+        (where (M_c ...) (concat (M_e ...) ...))
         ;; Resolve conflicts between inherited methods.
         (where (M_u ...) (join M_c ...))
         ;; Remove from the inherited methods any method which is overridden by a

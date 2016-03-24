@@ -53,9 +53,6 @@
       (object Io ... (inherits EG any ...) I ... M ... S ...))
   (EF EG
       hole)
-  ;; This separate context will be redefined by some languages to allow objects
-  ;; to be resolved normally in an inherits clause.
-  (EO EF)
   (s ....
      [ℓ as (self n) / x]))
 
@@ -432,12 +429,12 @@
    ;; Allocate the object o, converting fields into assignments with local
    ;; requests substituted to the new object, and ultimately return the
    ;; resulting reference.
-   (--> [σ (in-hole EO (object M ... S ...))]
+   (--> [σ (in-hole EF (object M ... S ...))]
         ;; This substitution is into the body of the object.  The use of self
         ;; and local requests in the method bodies will be handled when they are
         ;; requested.
         [(store σ (object (subst-method [(self 0) / m ...] M) ... M_f ...))
-         (in-hole EO (subst [ℓ / (self 0)]
+         (in-hole EF (subst [ℓ / (self 0)]
                             [(self 0) / m ...] (seq e ... (ref ℓ))))]
         ;; Fetch a fresh location.
         (where ℓ (fresh-location σ))

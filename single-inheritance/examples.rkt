@@ -6,13 +6,6 @@
 (provide (all-defined-out)
          (all-from-out "test.rkt"))
 
-;; Test if expressions can cause a Racket error.
-(redex-check Graceless-Inheritance e (eval-->GF (term e)))
-(redex-check Graceless-Inheritance e (eval-->GC (term e)))
-(redex-check Graceless-Inheritance e (eval-->GD (term e)))
-(redex-check Graceless-Inheritance e (eval-->GM (term e)))
-(redex-check Graceless-Inheritance e (eval-->GU (term e)))
-
 (define empty-inherits
   (term (object
          (inherits (object)))))
