@@ -35,7 +35,7 @@
      (self n)
      ((self n) z ← t)
      (y z ← t)
-     (t t ...)
+     (t t t ...)
      v)
   ;; Receiver, no different from a term in the base model.
   (r t)
@@ -56,12 +56,16 @@
   (a (m n))
   ;; Naturals
   (n natural)
-  ;; Scope type
-  (Γ (D ...))
   ;; Run-time object
   (O (d ...))
   ;; Object store
   (σ (O ...))
+  ;; Scope type
+  (Γ (G ...))
+  (G D
+     [self : T])
+  ;; Store type
+  (Σ ((D ...) ...))
   ;; Evaluation context
   (E (E m t ...)
      (v m v ... E t ...)
@@ -269,7 +273,7 @@
         ;; Fetch the method which matches the request.
         (where (_ ... (method (m ([x : S] ..._a) → U) uninitialised) _ ...)
                (lookup σ y))
-        uninitialised)
+        Uninitialised)
    ;; Substitute for unqualified requests to the parameters, and return the body
    ;; of the method.
    (--> [σ (in-hole E (y m v ..._a))]
@@ -280,16 +284,16 @@
         [σ (in-hole E (subst [y / (self 0)] [v / x] ... t))]
         ;; Fetch the method which matches the request.
         (where (_ ... (method (m ([x : S] ..._a) → U) t) _ ...) (lookup σ y))
-        request)
+        Request)
    ;; Set the field in the object and return the following expression.
    (--> [σ (in-hole E (y x ← v))]
         [(update σ y x v) (in-hole E done)]
-        update)
+        Update)
    ;; Move to the next expression in a sequence when the first expression has
    ;; completed evaluating.
    (--> [σ (in-hole E (v t ...))]
         [σ (in-hole E (seq t ...))]
-        sequence)
+        Sequence)
    ;; Allocate the object o, converting fields into assignments with local
    ;; requests substituted to the new object, and ultimately return the
    ;; resulting reference.
@@ -307,7 +311,208 @@
         (where (a ...) ((identify (signature d)) ...))
         ;; An object's method names must be unique.
         (side-condition (term (unique a ...)))
-        object)))
+        Object)))
+
+;; An auxiliary judgment to select a compatible signature from a list.
+(define-judgment-form Graceless
+  #:mode (select-sig I I O)
+  #:contract (select-sig Γ a D)
+
+  [(side-condition ,(equal? (term a) (term (identify D))))
+   ------------------------------------------------------- Here
+   (select-sig (D G ...) a D)]
+
+  [(select-sig (G ...) a D_a)
+   ;; This is not necessary for normal structural types, which will never
+   ;; feature two signatures with the same identifier, but it can be necessary
+   ;; for a type environment Γ where methods can shadow others.
+   (side-condition ,(not (equal? (term a) (term (identify D)))))
+   ------------------------------------------------------------- There
+   (select-sig (D G ...) a D_a)])
+
+;; An auxiliary judgment to select a self type from an environment.
+(define-judgment-form Graceless
+  #:mode (select-self I I O)
+  #:contract (select-self Γ n T)
+
+  [------------------------------------ Here
+   (select-self ([self : T] G ...) 0 T)]
+
+  [(side-condition ,(> (term n) 1))
+   (select-self (G ...) ,(sub1 (term n)) T)
+   ---------------------------------------- There
+   (select-self ([self : _] G ...) n T)]
+
+  [(select-self (G ...) n T)
+   --------------------------- Decl
+   (select-self (D G ...) n T)])
+
+;; Subtyping.
+(define-judgment-form Graceless
+  #:mode (subtype I I)
+  #:contract (subtype T T)
+
+  [------------- Refl
+   (subtype T T)]
+
+  [------------- Top
+   (subtype T ⊤)]
+
+  [------------- Bot
+   (subtype ⊥ T)]
+
+  [(subtype T T_1)
+   ----------------------- Or/Left
+   (subtype T (∨ T_1 T_2))]
+
+  [(subtype T T_2)
+   ----------------------- Or/Right
+   (subtype T (∨ T_1 T_2))]
+
+  [(subtype T_1 T)
+   (subtype T_2 T)
+   ----------------------- Or
+   (subtype (∨ T_1 T_2) T)]
+
+  [(select-sig (D_1 ...) (identify D_2) D) ...
+   (subsig D D_2) ...
+   ----------------------------------------------- Signatures
+   (subtype (type D_1 ...) (type D_2 ...))])
+
+;; Signature compatibility.
+(define-judgment-form Graceless
+  #:mode (subsig I I)
+  #:contract (subsig D D)
+
+  [(subtype S_2 S_1) ...
+   (subtype U_1 U_2)
+   ---------------------------------------------------------------- Method
+   (subsig (m ([x : S_1] ..._x) → U_1) (m ([z : S_2] ..._x) → U_2))])
+
+;; Signature absence.
+(define-judgment-form Graceless
+  #:mode (sig-not-in I I)
+  #:contract (sig-not-in T a)
+
+  [------------------- Done
+   (sig-not-in Done a)]
+
+  [(side-condition ,(not (ormap (λ (D)
+                                  (equal? (term a) (term (identify ,D))))
+                                (term (D_t ...)))))
+   ---------------------------------------------------------------------- Type
+   (sig-not-in (type D_t ...) a)]
+
+  [(sig-not-in T_1 a)
+   (sig-not-in T_2 a)
+   -------------------------- Or
+   (sig-not-in (∨ T_1 T_2) a)])
+
+;; Signature lookup.  Accepts the signature identity as an input, and outputs
+;; the signature with that identity in the type (if it is present).
+(define-judgment-form Graceless
+  #:mode (sig-in I I O)
+  #:contract (sig-in T a D)
+
+  [(select-sig (D_t ...) a D)
+   --------------------------- Type
+   (sig-in (type D_t ...) a D)]
+
+  [------------------------------------------------------------- Bot
+   (sig-in ⊥ (m n) (m ,(make-list (term n) (term [x : ⊤])) → ⊥))]
+
+  [(sig-in T_1 a (m ([x : S_1] ..._x) → U_1))
+   (sig-in T_2 a (m ([z : S_2] ..._x) → U_2))
+   ----------------------------------------------------------------- Or
+   (sig-in (∨ T_1 T_2) a (m ([x : (∧ S_1 S_2)] ...) → (∨ U_1 U_2)))]
+
+  [(sig-in T_1 a D)
+   (sig-not-in T_2 a)
+   ------------------------ Or/Left
+   (sig-in (∨ T_1 T_2) a D)]
+
+  [(sig-in T_2 a D)
+   (sig-not-in T_1 a)
+   ------------------------ Or/Right
+   (sig-in (∨ T_1 T_2) a D)])
+
+;; Term typing.
+(define-judgment-form Graceless
+  #:mode (typed I I I O)
+  #:contract (typed Σ Γ o T)
+
+  [--------------------------- Uninitialised
+   (typed Σ Γ uninitialised ⊥)]
+
+  [--------------------- Done
+   (typed Σ Γ done Done)]
+
+  [(side-condition ,(< (term y) (length (term Σ))))
+   (where (D ...) ,(list-ref (term Σ) (term y)))
+   ------------------------------------------- Reference
+   (typed Σ Γ y (type D ...))]
+
+  [(typed Σ Γ t T)
+   (typed Σ Γ (seq t_s ...) T_s)
+   ----------------------------- Sequence
+   (typed Σ Γ (t t_s ...) T_s)]
+
+  [(where (D ...) ((signature d) ...))
+   (decl-typed Σ ([self : (type D ...)] D ... . Γ) d D) ...
+   (typed Σ ([self : (type D ...)] D ... . Γ) t T)
+   (side-condition ,(not (check-duplicates (term ((identify D) ...)))))
+   -------------------------------------------------------------------- Object
+   (typed Σ Γ (object d ... t) (type D ...))]
+
+  [(typed Σ Γ t_1 T_1)
+   (sig-in T_1 (m ,(length (term (t_2 ...))))
+           (m ([x : S] ...) → U))
+   (typed Σ Γ t_2 T_2) ...
+   (subtype T_2 S) ...
+   ------------------------------------------ Request/Qualified
+   (typed Σ Γ (t_1 m t_2 ...) U)]
+
+  [(select-sig Γ (m ,(length (term (t ...))))
+               (m ([x : S] ...) → U))
+   (typed Σ Γ t T) ...
+   (subtype T S) ...
+   ------------------------------------------ Request/Unqualified
+   (typed Σ Γ (m t ...) U)]
+
+  ;; A special case which is ignored in the paper rules because it is presumed
+  ;; to be covered by Request/Unqualified.
+  [(select-self Γ n T)
+   ---------------------- Self
+   (typed Σ Γ (self n) T)]
+
+  [(typed Σ Γ x T_1)
+   (typed Σ Γ t T_2)
+   (sig-in T_1 (z 0) (z () → U))
+   (subtype T_2 U)
+   ----------------------------- Update
+   (typed Σ Γ (x z ← t) Done)])
+
+;; Declaration typing.
+(define-judgment-form Graceless
+  #:mode (decl-typed I I I O)
+  #:contract (decl-typed Σ Γ d D)
+
+  [(typed Σ ((x () → S) ... . Γ) o T)
+   (subtype T U)
+   -------------------------------------------- Method
+   (decl-typed Σ Γ
+               (method (m ([x : S] ...) → U) o)
+               (m ([x : S] ...) → U))])
+
+;; Store typing.
+(define-judgment-form Graceless
+  #:mode (store-typed I O)
+  #:contract (store-typed σ Σ)
+
+  [(where (D ...) ((signature d) ...))
+   (decl-typed (D ...) (((self 0) : (type D))) d D) ...
+   ---------------------------------------------------- Store
+   (store-typed (d ...) (D ...))])
 
 ;; Wrap a term t into an initial program with an empty store.
 (define (program t) (term [() ,t]))
