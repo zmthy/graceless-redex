@@ -67,12 +67,12 @@
   ;; Store type
   (Σ ((D ...) ...))
   ;; Evaluation context
-  (E (E m t ...)
+  (E hole
+     (E m t ...)
      (v m v ... E t ...)
      (m v ... E t ...)
      (E t ...)
-     (x z ← E)
-     hole))
+     (x z ← E)))
 
 ;; The ⊤ symbol is equivalent to the structural type with no signatures.
 (define-term ⊤ (type))
@@ -266,14 +266,15 @@
   (reduction-relation
    Graceless
    #:domain [σ o]
+   #:arrow :-->
    ;; Crash the program if a request results in uninitialised.  Requests are the
    ;; only way an uninitialised can appear in a program execution.
-   (--> [σ (in-hole E (y m v ..._a))]
-        [σ uninitialised]
-        ;; Fetch the method which matches the request.
-        (where (_ ... (method (m ([x : S] ..._a) → U) uninitialised) _ ...)
-               (lookup σ y))
-        Uninitialised)
+   (:--> [σ (in-hole E (y m v ..._a))]
+         [σ uninitialised]
+         ;; Fetch the method which matches the request.
+         (where (_ ... (method (m ([x : S] ..._a) → U) uninitialised) _ ...)
+                (lookup σ y))
+         Uninitialised)
    ;; Substitute for unqualified requests to the parameters, and return the body
    ;; of the method.
    (--> [σ (in-hole E (y m v ..._a))]
@@ -285,7 +286,7 @@
         ;; Fetch the method which matches the request.
         (where (_ ... (method (m ([x : S] ..._a) → U) t) _ ...) (lookup σ y))
         Request)
-   ;; Set the field in the object and return the following expression.
+   ;; Update the method and return done.
    (--> [σ (in-hole E (y x ← v))]
         [(update σ y x v) (in-hole E done)]
         Update)
@@ -311,7 +312,9 @@
         (where (a ...) ((identify (signature d)) ...))
         ;; An object's method names must be unique.
         (side-condition (term (unique a ...)))
-        Object)))
+        Object)
+   with [(:--> (in-hole E fst) (in-hole E snd))
+         (--> fst snd)]))
 
 ;; An auxiliary judgment to select a compatible signature from a list.
 (define-judgment-form Graceless
@@ -480,7 +483,9 @@
    (typed Σ Γ (m t ...) U)]
 
   ;; A special case which is ignored in the paper rules because it is presumed
-  ;; to be covered by Request/Unqualified.
+  ;; to be covered by Request/Unqualified.  Explicitly indexing the self
+  ;; variable makes it more difficult to ensure that it is covered by existing
+  ;; rules, so we just have a distinct rule for it.
   [(select-self Γ n T)
    ---------------------- Self
    (typed Σ Γ (self n) T)]
