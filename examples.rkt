@@ -10,31 +10,31 @@
   (object done))
 
 (test-->>G simple-object
-           ())
+           (type))
 
 (define-term simple-method
   (object
-   (method (m () → ⊤)
+   (method (m () → Done)
            done)
    done))
 
 (test-->>G simple-method
-           (m))
+           (type (m () → Done)))
 
 (define-term simple-request
   ((object
-    (method (m ([x : ⊤]) → ⊤)
+    (method (m ([x : ⊤]) → Done)
             done)
     done)
    m
    done))
 
 (test-->>G simple-request
-           done)
+           Done)
 
 (define-term scoped
   ((object
-    (method (a ([x : ⊤]) → ⊤)
+    (method (a ([x : ⊤]) → (type (b ([x : ⊤]) → ⊤)))
             (object
              (method (b ([x : ⊤]) → ⊤) (x))
              done))
@@ -43,7 +43,7 @@
    done))
 
 (test-->>G scoped
-           (b))
+           (type (b ([x : ⊤]) → ⊤)))
 
 (define-term multiple-args
   ((object
@@ -54,34 +54,35 @@
    done))
 
 (test-->>G multiple-args
-           done)
+           Done)
 
 (define-term local-request
   ((object
-    (method (first () → ⊤) (second))
-    (method (second () → ⊤) done)
+    (method (first () → Done) (second))
+    (method (second () → Done) done)
     done)
    first))
 
 (test-->>G local-request
-           done)
+           Done)
 
 (define-term simple-field
   (object
-   (method (x () → ⊤) uninitialised)
+   (method (x () → Done) uninitialised)
    ((self 0) x ← done)))
 
 (test-->>G simple-field
-           (x))
+           (type (x () → Done)))
 
 (define-term method-and-field
   (object
-   (method (m () → ⊤) done)
-   (method (x () → ⊤) uninitialised)
+   (method (m () → Done) done)
+   (method (x () → Done) uninitialised)
    ((self 0) x ← done)))
 
 (test-->>G method-and-field
-           (m x))
+           (type (m () → Done)
+                 (x () → Done)))
 
 (define-term uninit-request
   (object
@@ -98,7 +99,8 @@
    done))
 
 (test-->>G mutable-field
-           (x (x ≔)))
+           (type (x () → ⊤)
+                 ((x ≔) ([x : ⊤]) → Done)))
 
 (define-term local-field-assign
   (object
@@ -108,7 +110,9 @@
    ((x ≔) done)))
 
 (test-->>G local-field-assign
-           (x (x ≔) y))
+           (type (x () → ⊤)
+                 ((x ≔) ([x : ⊤]) → Done)
+                 (y () → ⊤)))
 
 (define-term field-assign
   ((object
@@ -119,7 +123,7 @@
    done))
 
 (test-->>G field-assign
-           done)
+           Done)
 
 (define-term done-argument
   ((object
@@ -142,6 +146,6 @@
    x))
 
 (test-->>G scoped-field
-           done)
+           Done)
 
 (test-results)

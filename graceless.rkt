@@ -25,7 +25,7 @@
   (S T)
   (U T)
   ;; Signature
-  (D (m ([z : S] ...) → U))
+  (D (M ([z : S] ...) → U))
   ;; Declaration
   (d (method (m ([z : S] ...) → U) o))
   ;; Term
@@ -45,6 +45,9 @@
   ;; Evaluation outcome
   (o t
      uninitialised)
+  ;; Signature name
+  (M m
+     self)
   ;; Method name
   (m z
      (z ≔))
@@ -53,7 +56,7 @@
      [v / (self n)]
      [(self n) / a])
   ;; Method identifier
-  (a (m n))
+  (a (M n))
   ;; Naturals
   (n natural)
   ;; Run-time object
@@ -61,9 +64,7 @@
   ;; Object store
   (σ (O ...))
   ;; Scope type
-  (Γ (G ...))
-  (G D
-     [self : T])
+  (Γ (D ...))
   ;; Store type
   (Σ ((D ...) ...))
   ;; Evaluation context
@@ -240,7 +241,7 @@
 ;; Identify a method based on its signature.
 (define-metafunction Graceless
   identify : D -> a
-  [(identify (m ([x : S] ...) → U)) (m ,(length (term (x ...))))])
+  [(identify (M ([x : S] ...) → U)) (M ,(length (term (x ...))))])
 
 ;; Sequence a series of expressions into a single expression.
 (define-metafunction Graceless
@@ -320,15 +321,15 @@
 
   [(side-condition ,(equal? (term a) (term (identify D))))
    ------------------------------------------------------- Here
-   (select-sig (D G ...) a D)]
+   (select-sig (D D_t ...) a D)]
 
-  [(select-sig (G ...) a D_a)
-   ;; This is not necessary for normal structural types, which will never
+  [;; This is not necessary for normal structural types, which will never
    ;; feature two signatures with the same identifier, but it can be necessary
    ;; for a type environment Γ where methods can shadow others.
    (side-condition ,(not (equal? (term a) (term (identify D)))))
+   (select-sig (D_t ...) a D_a)
    ------------------------------------------------------------- There
-   (select-sig (D G ...) a D_a)])
+   (select-sig (D D_t ...) a D_a)])
 
 ;; An auxiliary judgment to select a self type from an environment.
 (define-judgment-form Graceless
@@ -336,16 +337,17 @@
   #:contract (select-self Γ n T)
 
   [------------------------------------ Here
-   (select-self ([self : T] G ...) 0 T)]
+   (select-self ((self () → T) D_t ...) 0 T)]
 
   [(side-condition ,(> (term n) 1))
-   (select-self (G ...) ,(sub1 (term n)) T)
+   (select-self (D_t ...) ,(sub1 (term n)) T)
    ---------------------------------------- There
-   (select-self ([self : _] G ...) n T)]
+   (select-self ((self () → _) D_t ...) n T)]
 
-  [(select-self (G ...) n T)
-   --------------------------- Decl
-   (select-self (D G ...) n T)])
+  [(side-condition ,(not (equal? (term (identify D)) '(self 0))))
+   (select-self (D_t ...) n T)
+   -------------------------------------------------------------- Decl
+   (select-self (D D_t ...) n T)])
 
 ;; Subtyping.
 (define-judgment-form Graceless
@@ -356,7 +358,7 @@
    (subtype T T)]
 
   [------------- Top
-   (subtype T ⊤)]
+   (subtype T (type))]
 
   [------------- Bot
    (subtype ⊥ T)]
@@ -458,8 +460,8 @@
    (typed Σ Γ (t t_s ...) T_s)]
 
   [(where (D ...) ((signature d) ...))
-   (decl-typed Σ ([self : (type D ...)] D ... . Γ) d D) ...
-   (typed Σ ([self : (type D ...)] D ... . Γ) t T)
+   (decl-typed Σ ((self () → (type D ...)) D ... . Γ) d D) ...
+   (typed Σ ((self () → (type D ...)) D ... . Γ) t T)
    (side-condition ,(not (check-duplicates (term ((identify D) ...)))))
    -------------------------------------------------------------------- Object
    (typed Σ Γ (object d ... t) (type D ...))]
@@ -509,10 +511,21 @@
   #:mode (store-typed I O)
   #:contract (store-typed σ Σ)
 
-  [(where (D ...) ((signature d) ...))
-   (decl-typed (D ...) (((self 0) : (type D))) d D) ...
+  [(where Σ (((signature d) ...) ...))
+   (where ((D ...) ...) Σ)
+   (object-typed Σ (d ...) (D ...)) ...
    ---------------------------------------------------- Store
-   (store-typed (d ...) (D ...))])
+   (store-typed ((d ...) ...) Σ)])
+
+;; Store object typing.
+(define-judgment-form Graceless
+  #:mode (object-typed I I O)
+  #:contract (object-typed Σ (d ...) (D ...))
+
+  [(where (D ...) ((signature d) ...))
+   (decl-typed Σ ((self () → (type D ...))) d D) ...
+   ------------------------------ Object
+   (object-typed Σ (d ...) (D ...))])
 
 ;; Wrap a term t into an initial program with an empty store.
 (define (program t) (term [() ,t]))

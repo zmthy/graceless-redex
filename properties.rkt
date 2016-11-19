@@ -8,7 +8,7 @@
         [t (second p)])
     (match (judgment-holds (store-typed ,σ Σ) Σ)
       [(list Σ)
-       (judgment-holds (typed ,σ () ,t T))]
+       (judgment-holds (typed ,Σ () ,t T))]
       [else #f])))
 
 (define value? (redex-match Graceless v))
