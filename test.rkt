@@ -6,59 +6,56 @@
 (provide test-->>G
          (all-from-out "graceless.rkt"))
 
+;; Test if a term is a 'result', that is either a value or a raise of a value.
 (define-metafunction Graceless
-  not-result : any -> boolean
-  [(not-result uninitialised) #f]
-  [(not-result v) #f]
-  [(not-result _) #t])
+  value? : t -> boolean
+  [(value? v) #t]
+  [(value? _) #f])
 
+;; Test if a term is a raise of some value.
 (define-metafunction Graceless
-  name< : m m -> boolean
-  [(name< x_1 x_2) ,(symbol<? (term x_1) (term x_2))]
-  [(name< x (_ ≔)) #t]
-  [(name< (_ ≔) x) #f]
-  [(name< (≔ x_1) (≔ x_2)) ,(symbol<? (term x_1) (term x_2))])
+  raise-value? : t -> boolean
+  [(raise-value? (↥ v)) #t]
+  [(raise-value? _)     #f])
 
-(define (name<? a b) (term (name< ,a ,b)))
-
+;; Test if a program has the given type.
 (define-metafunction Graceless
-  test-subtype : (T ...) T -> boolean
-  [(test-subtype (S) U) ,(judgment-holds (subtype S U))]
-  [(test-subtype _ _) #f])
+  program-typed? : any any -> boolean
+  [(program-typed? p     S)   (program-typed? p (⋃ S))]
+  [(program-typed? p     (T)) (program-typed? p T)]
+  [(program-typed? [σ t] T)   ,(judgment-holds (has-type Γ t T))
+   (where (Γ) ,(judgment-holds (assign-env σ Γ) Γ))]
+  [(program-typed? any   p)   (program-typed? p any)]
+  [(program-typed? _     _)   #f])
 
+;; Assign a term a type, failing if not well-typed.
 (define-metafunction Graceless
-  test-typed : (Σ ...) o -> (T ...)
-  [(test-typed (Σ) o) ,(judgment-holds (typed Σ () o T) T)]
-  [(test-typed _ _) ()])
+  term-type : t -> (T ...)
+  [(term-type t) ,(judgment-holds (assign-type () t T) T)])
 
+;; Test if the result of an execution matches the expected output.
 (define-metafunction Graceless
-  test-store-typed : σ -> (Σ ...)
-  [(test-store-typed σ) ,(judgment-holds (store-typed σ Σ) Σ)])
+  result-match? : any any -> boolean
+  [(result-match? [σ t] stuck) (not (or (value? t) (raise-value? t)))]
+  [(result-match? [σ t] raise) (raise-value? t)]
+  [(result-match? [σ t] t)     #t]
+  [(result-match? [σ v] any)   (program-typed? [σ v] any)]
+  [(result-match? any   p)     (result-match? p any)])
 
-(define-metafunction Graceless
-  result-typed : any any -> boolean
-  [(result-typed [σ any] (T))
-   (test-subtype (test-typed (test-store-typed σ) any) T)]
-  [(result-typed [σ o] _) #f]
-  [(result-typed any [σ o]) (result-typed [σ o] any)])
-
-(define-metafunction Graceless
-  result-equiv : any any -> boolean
-  [(result-equiv [_ any] stuck) (not-result any)]
-  [(result-equiv [σ v] T) (result-typed [σ v] (T))]
-  [(result-equiv [σ o] o) #t]
-  [(result-equiv [σ o] _) #f]
-  [(result-equiv any [σ o]) (result-equiv [σ o] any)])
-
+;; Test that the first term reduces to the state described in the second, and
+;; that the type of the resulting reduction matches the type assigned to the
+;; first term.  The second form may be a term, an expected type, or the special
+;; terms 'stuck', indicating a non-result that is not a redex; and 'raise',
+;; indicating a raise of any value.
 (define-syntax-rule (test-->>G t r)
   (begin
     (test-->>
      -->G
-     #:equiv (λ (a b) (term (result-typed ,a ,b)))
+     #:equiv (λ (a b) (term (program-typed? ,a ,b)))
      (program (term t))
-     (judgment-holds (typed () () t T) T))
+     (term (term-type t)))
     (test-->>
      -->G
-     #:equiv (λ (a b) (term (result-equiv ,a ,b)))
+     #:equiv (λ (a b) (term (result-match? ,a ,b)))
      (program (term t))
      (term r))))

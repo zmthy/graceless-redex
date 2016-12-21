@@ -7,145 +7,163 @@
          (all-from-out "test.rkt"))
 
 (define-term simple-object
-  (object done))
+  (object (self 0)))
 
 (test-->>G simple-object
-           (type))
+           ⊤)
 
 (define-term simple-method
   (object
-   (method (m () → Done)
-           done)
-   done))
+   (method
+    (m () → ⊤)
+    (self 0))
+   (self 0)))
 
 (test-->>G simple-method
-           (type (m () → Done)))
+           (type (m () → ⊤)))
 
 (define-term simple-request
   ((object
-    (method (m ([x : ⊤]) → Done)
-            done)
-    done)
-   m
-   done))
+    (method
+     (m () → ⊤)
+     (self 0))
+    (self 0))
+   m))
 
 (test-->>G simple-request
-           Done)
+           (type (m () → ⊤)))
 
 (define-term scoped
   ((object
-    (method (a ([x : ⊤]) → (type (b ([x : ⊤]) → ⊤)))
+    (method (a () → (⋃ (type (b ([x : ⊤]) → ⊤))))
             (object
              (method (b ([x : ⊤]) → ⊤) (x))
-             done))
-    done)
-   a
-   done))
+             (self 0)))
+    (self 0))
+   a))
 
 (test-->>G scoped
            (type (b ([x : ⊤]) → ⊤)))
 
+(define-term single-arg
+  (object
+   ((object
+     (method (identity ([x : ⊤]) → ⊤) (x))
+     (self 0))
+    identity
+    (self 0))))
+
+(test-->>G single-arg
+           ⊤)
+
 (define-term multiple-args
-  ((object
-    (method (const ([x : ⊤] [y : ⊤]) → ⊤) (y))
-    done)
-   const
-   done
-   done))
+  (object
+   ((object
+     (method (const ([x : ⊤] [y : ⊤]) → ⊤) (x))
+     (self 0))
+    const
+    (self 0)
+    (self 0))))
 
 (test-->>G multiple-args
-           Done)
+           ⊤)
 
 (define-term local-request
   ((object
-    (method (first () → Done) (second))
-    (method (second () → Done) done)
-    done)
+    (method (first () → ⊤) (second))
+    (method (second () → ⊤) (self 0))
+    (self 0))
    first))
 
 (test-->>G local-request
-           Done)
+           (type (first () → ⊤)
+                 (second () → ⊤)))
 
 (define-term simple-field
   (object
-   (method (x () → Done) uninitialised)
-   ((self 0) x ← done)))
+   (method (x () → ⊤) (↥ (self 0)))
+   ((self 0) ← (method (x () → ⊤) (self 0)))))
 
 (test-->>G simple-field
-           (type (x () → Done)))
+           (type (x () → ⊤)))
 
 (define-term method-and-field
   (object
-   (method (m () → Done) done)
-   (method (x () → Done) uninitialised)
-   ((self 0) x ← done)))
+   (method (m () → ⊤) (self 0))
+   (method (x () → ⊤) (↥ (self 0)))
+   ((self 0) ← (method (x () → ⊤) (self 0)))))
 
 (test-->>G method-and-field
-           (type (m () → Done)
-                 (x () → Done)))
+           (type (m () → ⊤)
+                 (x () → ⊤)))
 
 (define-term uninit-request
   (object
-   (method (x () → ⊤) uninitialised)
+   (method (x () → ⊤) (↥ (self 0)))
    (x)))
 
 (test-->>G uninit-request
-           uninitialised)
+           raise)
 
 (define-term mutable-field
   (object
-   (method (x () → ⊤) uninitialised)
-   (method ((x ≔) ([x : ⊤]) → Done) ((self 0) x ← (x)))
-   done))
+   (method (x () → ⊤) (↥ (self 0)))
+   (method ((x ≔) ([v : ⊤]) → ⊤) ((self 0) ← (method (x () → ⊤) (v))))
+   (self 0)))
 
 (test-->>G mutable-field
            (type (x () → ⊤)
-                 ((x ≔) ([x : ⊤]) → Done)))
+                 ((x ≔) ([v : ⊤]) → ⊤)))
 
 (define-term local-field-assign
   (object
-   (method (x () → ⊤) uninitialised)
-   (method ((x ≔) ([x : ⊤]) → Done) ((self 0) x ← (x)))
-   (method (y () → ⊤) uninitialised)
-   ((x ≔) done)))
+   (method (x () → ⊤) (↥ (self 0)))
+   (method ((x ≔) ([v : ⊤]) → ⊤) ((self 0) ← (method (x () → ⊤) (v))))
+   (method (y () → ⊤) (↥ (self 0)))
+   ((x ≔) (self 0))))
 
 (test-->>G local-field-assign
            (type (x () → ⊤)
-                 ((x ≔) ([x : ⊤]) → Done)
+                 ((x ≔) ([v : ⊤]) → ⊤)
                  (y () → ⊤)))
 
 (define-term field-assign
-  ((object
-    (method (x () → ⊤) uninitialised)
-    (method ((x ≔) ([x : ⊤]) → Done) ((self 0) x ← (x)))
-    done)
-   (x ≔)
-   done))
+  (object
+   ((object
+     (method (x () → ⊤) (↥ (self 0)))
+     (method ((x ≔) ([v : ⊤]) → ⊤) ((self 0) ← (method (x () → ⊤) (v))))
+     (self 0))
+    (x ≔)
+    (self 0))))
 
 (test-->>G field-assign
-           Done)
-
-(define-term done-argument
-  ((object
-    (method (m ([x : ⊤]) → ⊤) (x))
-    done)
-   m
-   done))
-
-(test-->>G done-argument
-           done)
+           ⊤)
 
 (define-term scoped-field
   ((object
-    (method (m () → ⊤) done)
-    (method (x () → ⊤) uninitialised)
-    ((self 0) x ← ((object
-                    (method (y () → ⊤) uninitialised)
-                    ((self 0) y ← (m)))
-                   y)))
+    (method
+     (m () → ⊤)
+     (self 0))
+    (method
+     (x () → ⊤)
+     (↥ (self 0)))
+    (method
+     ((x ≔) ([v : ⊤]) → ⊤)
+     ((self 0) ← (method (x () → ⊤) (v))))
+    ((x ≔) ((object
+             (method
+              (y () → ⊤)
+              (↥ (self 0)))
+             (method
+              ((y ≔) ([v : ⊤]) → ⊤)
+              ((self 0) ← (method (y () → ⊤) (v))))
+             ((y ≔) (m)))
+            y)))
    x))
 
 (test-->>G scoped-field
-           Done)
+           (type (m () → ⊤)
+                 (x () → ⊤)
+                 ((x ≔) ([v : ⊤]) → ⊤)))
 
 (test-results)
